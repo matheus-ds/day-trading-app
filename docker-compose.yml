@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  webui:
+    build:
+      dockerfile: Dockerfile
+      context: ./web
+      target: development
+    ports:
+      - '3000:3000'
+    depends_on:
+      - backend
+ 
+  backend:
+    build:
+      dockerfile: Dockerfile
+      context: ./backend
+      target: development
+      
+    ports:
+      - '8080:8080'
