@@ -1,0 +1,9 @@
+environment:
+  Env: local
+
+mongo:
+  Host: mongo
+  Port: 27017
+  User: user
+  Password: pass
+  Dbname: day-trading-app
