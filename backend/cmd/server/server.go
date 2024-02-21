@@ -5,6 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/matheus-ds/day-trading-app/backend/config"
+	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/matheus-ds/day-trading-app/backend/internal/service"
 	"github.com/matheus-ds/day-trading-app/backend/internal/service/transport"
@@ -12,8 +14,15 @@ import (
 )
 
 type Server struct {
-	Router *gin.Engine
-	Srv    *transport.HTTPEndpoint
+	cfg         *config.Config
+	Router      *gin.Engine
+	Srv         *transport.HTTPEndpoint
+	mongoConn   *mongo.Database
+	mongoClient *mongo.Client
+}
+
+func NewServer(cfg *config.Config, mongoConn *mongo.Database, mongoClient *mongo.Client) *Server {
+	return &Server{cfg: cfg, mongoConn: mongoConn, mongoClient: mongoClient}
 }
 
 func (s *Server) Initialize() {
