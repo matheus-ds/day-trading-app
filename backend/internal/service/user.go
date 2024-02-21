@@ -3,6 +3,7 @@ package service
 import (
 	"strings"
 
+	token "github.com/matheus-ds/day-trading-app/backend/internal/service/jwt"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -28,6 +29,7 @@ func (s serviceImpl) AuthenticateUser(email, password string) (string, error) {
 	}
 
 	// 3. generate and return jwt token
-
-	return "token", nil
+	jwt := token.JWTManager{}
+	token, err := jwt.GenerateToken(user.ID)
+	return token, err
 }
