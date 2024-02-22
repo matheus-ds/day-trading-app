@@ -1,6 +1,7 @@
 package token
 
 import (
+	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -12,7 +13,16 @@ type JWTManager struct {
 }
 
 // NewJWTManager creates a new instance of JWTManager
-func NewJWTManager(secretKey string, tokenDuration time.Duration) *JWTManager {
+func NewJWTManager() *JWTManager {
+	// Retrieve the secret key from environment variable
+	secretKey := os.Getenv("SECRET_KEY")
+	if secretKey == "" {
+		panic("SECRET_KEY environment variable is not set")
+	}
+
+	//Hardcoded token duration to 24 hours
+	tokenDuration := time.Hour * 24
+
 	return &JWTManager{
 		secretKey:     secretKey,
 		tokenDuration: tokenDuration,

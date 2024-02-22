@@ -29,7 +29,7 @@ func (s serviceImpl) AuthenticateUser(email, password string) (string, error) {
 	}
 
 	// 3. generate and return jwt token
-	jwt := token.JWTManager{}
+	jwt := token.NewJWTManager()
 	token, err := jwt.GenerateToken(user.ID)
 	return token, err
 }
