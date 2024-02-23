@@ -1,29 +1,52 @@
-package mongo
+package store
 
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
-	"github.com/matheus-ds/day-trading-app/backend/config"
+	"day-trading-app/backend/config"
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
 )
 
-type MongoTxInterface struct {
+var lock = &sync.Mutex{}
+
+type mongoHandler struct {
 	client *mongo.Client
 }
 
-func NewTxInterface(c *mongo.Client) MongoTxInterface {
-	return MongoTxInterface{
-		client: c,
+var handler *mongoHandler
+
+func GetMongoHandler() *mongoHandler {
+	if handler == nil {
+		lock.Lock()
+		defer lock.Unlock()
+		if handler == nil {
+			fmt.Println("Creating mongo single instance now.")
+			handler = &mongoHandler{}
+		} else {
+			fmt.Println("Mongo single instance already created.")
+		}
+	} else {
+		fmt.Println("Single instance already created.")
+	}
+
+	return handler
+}
+
+func NewTxInterface() mongoHandler {
+	_, client, _, _ := ConnectMongoDB(&config.Config{})
+	return mongoHandler{
+		client: client,
 	}
 }
 
-func (tx *MongoTxInterface) BeginMongoTransaction(ctx context.Context, callback func(mongo.SessionContext) (interface{}, error)) (interface{}, error) {
-	session, err := tx.client.StartSession()
+func (mh *mongoHandler) BeginMongoTransaction(ctx context.Context, callback func(mongo.SessionContext) (interface{}, error)) (interface{}, error) {
+	session, err := mh.client.StartSession()
 	if err != nil {
 		return nil, err
 	}
