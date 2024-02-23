@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 type JWTManager struct {
@@ -30,11 +31,11 @@ func NewJWTManager() *JWTManager {
 }
 
 // GenerateToken generates a new JWT token
-func (jm *JWTManager) GenerateToken(userName string) (string, error) {
+func (jm *JWTManager) GenerateToken(userID *primitive.ObjectID) (string, error) {
 	// Define the token claims
 	claims := jwt.MapClaims{
-		"user_name": userName,                                // Include any additional claims you need
-		"exp":       time.Now().Add(jm.tokenDuration).Unix(), // Token expiration time
+		"user_ID": userID,                                  // Include any additional claims you need
+		"exp":     time.Now().Add(jm.tokenDuration).Unix(), // Token expiration time
 	}
 
 	// Create a new token with the claims
