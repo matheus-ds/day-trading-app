@@ -21,6 +21,7 @@ func (e HTTPEndpoint) AddMoneyToWallet(c *gin.Context) {
 				"error": "invalid request",
 			},
 		})
+		return
 	}
 
 	err := e.srv.AddMoneyToWallet(userName, wallet.Amount)

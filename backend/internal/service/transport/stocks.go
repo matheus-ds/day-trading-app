@@ -20,6 +20,7 @@ func (e HTTPEndpoint) CreateStock(c *gin.Context) {
 				"error": "invalid request",
 			},
 		})
+		return
 	}
 
 	createdStock, err := e.srv.CreateStock(stock.StockName)
@@ -54,6 +55,7 @@ func (e HTTPEndpoint) AddStockToUser(c *gin.Context) {
 				"error": "invalid request",
 			},
 		})
+		return
 	}
 
 	err := e.srv.AddStockToUser(userName, stock.StockID, stock.Quantity)
@@ -146,6 +148,7 @@ func (e HTTPEndpoint) PlaceStockOrder(c *gin.Context) {
 				"error": "invalid request",
 			},
 		})
+		return
 	}
 
 	err := e.srv.PlaceStockOrder(userName, order.StockID, order.IsBuy, order.OrderType, order.Quantity, order.Price)
@@ -179,6 +182,7 @@ func (e HTTPEndpoint) CancelStockTransaction(c *gin.Context) {
 				"error": "invalid request",
 			},
 		})
+		return
 	}
 
 	err := e.srv.CancelStockTransaction(userName, cancelReq.StockTxID)
