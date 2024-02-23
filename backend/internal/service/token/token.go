@@ -30,10 +30,10 @@ func NewJWTManager() *JWTManager {
 }
 
 // GenerateToken generates a new JWT token
-func (jm *JWTManager) GenerateToken(userID int64) (string, error) {
+func (jm *JWTManager) GenerateToken(userName string) (string, error) {
 	// Define the token claims
 	claims := jwt.MapClaims{
-		"user_id": userID,                                  // Include any additional claims you need
+		"user_ID": userName,                                // Include any additional claims you need
 		"exp":     time.Now().Add(jm.tokenDuration).Unix(), // Token expiration time
 	}
 

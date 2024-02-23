@@ -1,7 +1,7 @@
 package transport
 
 import (
-	"github.com/matheus-ds/day-trading-app/backend/internal/service"
+	"day-trading-app/backend/internal/service"
 )
 
 type Transport interface {

@@ -3,33 +3,29 @@ package service
 import (
 	"strings"
 
-	token "github.com/matheus-ds/day-trading-app/backend/internal/service/jwt"
+	"day-trading-app/backend/internal/service/token"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
-type User struct {
-	ID           int64  `db:"id"`
-	Email        string `db:"email"`
-	PasswordHash string `db:"password_hash"`
-}
-
-func (s serviceImpl) AuthenticateUser(email, password string) (string, error) {
-	// TODO: implement this
-
+func (s serviceImpl) AuthenticateUser(userName, password string) (string, error) {
 	// 1. trim inputs
-	email = strings.TrimSpace(email)
+	userName = strings.TrimSpace(userName)
 
 	// 2. get user from db
-	user := User{}
-	// user, err := s.db.GetUserByEmail(email)
-
-	err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
+	user, err := s.db.GetUserByUserName(userName)
 	if err != nil {
 		return "", err
 	}
 
-	// 3. generate and return jwt token
+	// 3. compare password
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
+	if err != nil {
+		return "", err
+	}
+
+	// 4. generate and return jwt token
 	jwt := token.NewJWTManager()
-	token, err := jwt.GenerateToken(user.ID)
+	token, err := jwt.GenerateToken(user.UserName)
 	return token, err
 }
