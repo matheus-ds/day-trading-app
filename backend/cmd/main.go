@@ -1,9 +1,10 @@
 package main
 
 import (
+	"day-trading-app/backend/cmd/server"
+	"day-trading-app/backend/pkg/logger"
+
 	"github.com/joho/godotenv"
-	"github.com/matheus-ds/day-trading-app/backend/cmd/server"
-	"github.com/matheus-ds/day-trading-app/backend/pkg/logger"
 )
 
 func init() {

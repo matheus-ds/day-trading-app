@@ -3,14 +3,16 @@ package server
 import (
 	"os"
 
+	"day-trading-app/backend/config"
+
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/matheus-ds/day-trading-app/backend/config"
 	"go.mongodb.org/mongo-driver/mongo"
 
-	"github.com/matheus-ds/day-trading-app/backend/internal/service"
-	"github.com/matheus-ds/day-trading-app/backend/internal/service/transport"
-	"github.com/matheus-ds/day-trading-app/backend/pkg/logger"
+	"day-trading-app/backend/internal/service"
+	"day-trading-app/backend/internal/service/store"
+	"day-trading-app/backend/internal/service/transport"
+	"day-trading-app/backend/pkg/logger"
 )
 
 type Server struct {
@@ -26,7 +28,7 @@ func NewServer(cfg *config.Config, mongoConn *mongo.Database, mongoClient *mongo
 }
 
 func (s *Server) Initialize() {
-	s.Srv = transport.NewHTTPTransport(service.New())
+	s.Srv = transport.NewHTTPTransport(service.New(store.GetMongoHandler()))
 
 	s.Router = gin.Default()
 

@@ -3,8 +3,9 @@ package transport
 import (
 	"net/http"
 
+	"day-trading-app/backend/pkg/logger"
+
 	"github.com/gin-gonic/gin"
-	"github.com/matheus-ds/day-trading-app/backend/pkg/logger"
 )
 
 const AccessTokenDuration = 60 * 60 * 24 * 7 // 7 days
