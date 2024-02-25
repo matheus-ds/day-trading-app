@@ -3,25 +3,81 @@ package store
 import (
 	"day-trading-app/backend/internal/service/models"
 
-	"errors"
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 func (mh *mongoHandler) RegisterUser(userName, password string) error {
-	return errors.New("not implemented")
+	//create user in db
+	collection := mh.client.Database("day-trading-app").Collection("users")
+	_, err := collection.InsertOne(ctx, models.User{UserName: userName, PasswordHash: password})
+	defer cancel()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (mh *mongoHandler) GetUserByUserName(userName string) (models.User, error) {
-	return models.User{}, errors.New("not implemented")
+	// Access the collection where user data is stored
+	collection := mh.client.Database("day-trading-app").Collection("users")
+
+	// Find the user by their username
+	var user models.User
+	err := collection.FindOne(ctx, bson.M{"user_name": userName}).Decode(&user)
+	defer cancel()
+	if err != nil {
+		return models.User{}, err
+	}
+	return user, nil
 }
 
 func (mh *mongoHandler) GetWalletTransactions(userName string) ([]models.WalletTransaction, error) {
-	return nil, errors.New("not implemented")
+	// Access the collection where user data is stored
+	collection := mh.client.Database("day-trading-app").Collection("wallet_transactions")
+
+	// return every transaction in the wallet_transactions collection
+	cursor, err := collection.Find(ctx, bson.M{"user_name": userName})
+	defer cancel()
+	if err != nil {
+		return nil, err
+	}
+	var walletTransactions []models.WalletTransaction
+	if err = cursor.All(ctx, &walletTransactions); err != nil {
+		return nil, err
+	}
+	return walletTransactions, nil
 }
 
 func (mh *mongoHandler) GetWalletBalance(userName string) (float32, error) {
-	return -1, errors.New("not implemented")
+	//access the collection where user data is stored
+	collection := mh.client.Database("day-trading-app").Collection("users")
+
+	//find the user by their username
+	var user models.User
+	err := collection.FindOne(ctx, bson.M{"user_name": userName}).Decode(&user)
+	defer cancel()
+	if err != nil {
+		return 0, err
+	}
+	return user.Balance, nil
 }
 
 func (mh *mongoHandler) SetWalletBalance(userName string, newBalance float32) error {
-	return errors.New("not implemented")
+	// Access the collection where user data is stored
+	collection := mh.client.Database("day-trading-app").Collection("users")
+
+	// Find the user by their username
+	var user models.User
+	err := collection.FindOne(ctx, bson.M{"user_name": userName}).Decode(&user)
+	defer cancel()
+	if err != nil {
+		return err
+	}
+
+	// Update the user's balance
+	_, err = collection.UpdateOne(ctx, bson.M{"user_name": userName}, bson.M{"$set": bson.M{"balance": newBalance}})
+	if err != nil {
+		return err
+	}
+	return nil
 }
