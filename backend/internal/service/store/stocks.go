@@ -14,8 +14,7 @@ func (mh *mongoHandler) CreateStock(stockName string) (models.StockCreated, erro
 	// stock_name:"Google", stock_id: <googleStockId>
 	stockID := strings.ToLower(stockName) + "StockId"
 	stock := models.StockCreated{
-		ID:   stockID,
-		Name: stockName,
+		ID: stockID,
 	}
 	// todo: create stock in db
 	collection := mh.client.Database("day-trading-app").Collection("stocks")
@@ -40,9 +39,7 @@ func (mh *mongoHandler) GetStockPortfolio(userName string) ([]models.PortfolioIt
 	collection := mh.client.Database("day-trading-app").Collection("users")
 
 	// Find the user by their username
-	var user struct {
-		Stocks []models.PortfolioItem `bson:"stocks"`
-	}
+	var user models.User
 	err := collection.FindOne(context.Background(), bson.M{"user_name": userName}).Decode(&user)
 	if err != nil {
 		return nil, err
@@ -144,6 +141,7 @@ func (mh *mongoHandler) PlaceStockOrder(userName string, stockID string, isBuy b
 func (mh *mongoHandler) CancelStockTransaction(userName string, stockTxID string) error {
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 	// Update the stock transaction with the given stockTxID to have the status "CANCELLED"
+	// need to check first if transaction is IN_PROGRESS or PARTIALLY_FULFILLED and abort if not. Because some transactions might be too late to cancel.
 	_, err := collection.UpdateOne(context.Background(), bson.M{"stock_tx_id": stockTxID}, bson.M{"$set": bson.M{"order_status": "CANCELLED"}})
 	if err != nil {
 		return err
