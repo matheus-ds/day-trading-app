@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"day-trading-app/backend/internal/service/models"
+	"errors"
 	"strings"
 	"time"
 
@@ -142,9 +143,19 @@ func (mh *mongoHandler) CancelStockTransaction(userName string, stockTxID string
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 	// Update the stock transaction with the given stockTxID to have the status "CANCELLED"
 	// need to check first if transaction is IN_PROGRESS or PARTIALLY_FULFILLED and abort if not. Because some transactions might be too late to cancel.
-	_, err := collection.UpdateOne(context.Background(), bson.M{"stock_tx_id": stockTxID}, bson.M{"$set": bson.M{"order_status": "CANCELLED"}})
+	var transaction models.StockTransaction
+	err := collection.FindOne(context.Background(), bson.M{"stock_tx_id": stockTxID}).Decode(&transaction)
 	if err != nil {
 		return err
 	}
+	if transaction.OrderStatus != "IN_PROGRESS" && transaction.OrderStatus != "PARTIALLY_FULFILLED" {
+		_, err := collection.UpdateOne(context.Background(), bson.M{"stock_tx_id": stockTxID}, bson.M{"$set": bson.M{"order_status": "CANCELLED"}})
+		if err != nil {
+			return err
+		}
+	} else {
+		return errors.New("transaction cannot be cancelled because it is not in progress or partially fulfilled")
+	}
+
 	return nil
 }
