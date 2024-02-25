@@ -62,7 +62,8 @@ func ConnectMongoDB(cfg *config.Config) (*mongo.Database, *mongo.Client, func() 
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	connString := fmt.Sprintf("mongodb://%s:%s@%s:%s/?authSource=admin&readPreference=primary&retryWrites=true&w=majority", cfg.Mongo.User, cfg.Mongo.Password, cfg.Mongo.Host, cfg.Mongo.Port)
+	// got rid of cgf.Mongo.User and cfg.Mongo.Password for now. Will add back in later
+	connString := fmt.Sprintf("mongodb://%s:%s/?authSource=admin&readPreference=primary&retryWrites=true&w=majority", cfg.Mongo.Host, cfg.Mongo.Port)
 	client, err := mongo.Connect(ctx, options.Client().ApplyURI(connString).SetMinPoolSize(20).SetHeartbeatInterval(1*time.Second))
 	if err != nil {
 		return nil, nil, nil, err
