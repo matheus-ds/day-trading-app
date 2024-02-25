@@ -22,7 +22,7 @@ COPY --from=builder /app/env.docker .env
 
 
 
-EXPOSE 8080
+EXPOSE 8000
 CMD [ "./main" ]
 
 FROM alpine:3.19.0 as production
@@ -31,5 +31,5 @@ WORKDIR /app
 
 COPY --from=builder /app/main main
 
-EXPOSE 8080
+EXPOSE 8000
 CMD [ "./main" ]

@@ -25,9 +25,9 @@ func (mh *mongoHandler) CreateStock(stockName string) (models.StockCreated, erro
 	return stock, nil
 }
 
-func (mh *mongoHandler) AddStockToUser(userName string, stockID string, stockName string, quantity int) error {
+func (mh *mongoHandler) AddStockToUser(userName string, stockID string, quantity int) error {
 	collection := mh.client.Database("day-trading-app").Collection("users")
-	_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": userName}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": stockID, "stock_name": stockName, "quantity": quantity}}})
+	_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": userName}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": stockID, "quantity": quantity}}})
 	if err != nil {
 		return err
 	}
