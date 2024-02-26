@@ -7,9 +7,9 @@ import (
 )
 
 func (s serviceImpl) CreateStock(stockName string) (models.StockCreated, error) {
-	// return s.db.CreateStock(stockName)
+	return s.db.CreateStock(stockName)
 
-	return models.StockCreated{}, errors.New("not implemented")
+	//return models.StockCreated{}, errors.New("not implemented")
 }
 
 func (s serviceImpl) AddStockToUser(userName string, stockID string, quantity int) error {

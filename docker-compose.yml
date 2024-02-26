@@ -18,19 +18,19 @@ services:
       target: development
       
     ports:
-      - '8080:8080'
+      - '8000:8000'
 
   mongodb:
     container_name: mongo
     image: mongo:6.0.13
-    environment:
-      - MONGO_INITDB_ROOT_USERNAME=user
-      - MONGO_INITDB_ROOT_PASSWORD=pass
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017 --quiet
-      interval: 10s
-      timeout: 10s
-      retries: 5
-      start_period: 40s
+    # environment:
+    #   - MONGO_INITDB_ROOT_USERNAME=user
+    #   - MONGO_INITDB_ROOT_PASSWORD=pass
+    # healthcheck:
+    #   test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017 --quiet
+    #   interval: 10s
+    #   timeout: 10s
+    #   retries: 5
+    #   start_period: 40s
     ports:
       - "27017:27017"

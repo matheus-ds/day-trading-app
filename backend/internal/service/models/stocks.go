@@ -5,9 +5,9 @@ type StockCreated struct {
 }
 
 type PortfolioItem struct {
-	ID            string `json:"id" 	        bson:"id"`
-	Name          string `json:"name" 			bson:"name"`
-	QuantityOwned int    `json:"quantityOwned"  bson:"quantity_owned"`
+	ID            string `json:"id" bson:"id"`
+	Name          string `json:"name" bson:"name"`
+	QuantityOwned int    `json:"quantityOwned" bson:"quantity_owned"`
 }
 
 type StockTransaction struct {

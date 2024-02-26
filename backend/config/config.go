@@ -12,11 +12,9 @@ type Config struct {
 }
 
 type MongoConfig struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	Dbname   string
+	Host   string
+	Port   string
+	Dbname string
 }
 
 func LoadConfig(fileName string) (*viper.Viper, error) {
