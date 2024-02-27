@@ -1,4 +1,6 @@
-// The matching engine pairs buy and sell orders to create mutually agreeable transactions.
+// The Matching Engine pairs buy and sell orders to create mutually agreeable transactions,
+// which are placed in a queue to be handled by the Order Execution component.
+// Unmatched orders remain in the Matching Engines memory until matched, expired, or canceled.
 
 package matching
 
@@ -24,7 +26,7 @@ var stockTxCommitQueue []models.StockTransaction
 // Define orderings for orderbooks. Sort first by price, then if equal price, by time.
 
 // Prioritize buys by highest price 1st, then earliest time 2nd.
-func BuyIsLowerPriorityThan(l, r interface{}) bool {
+func buyIsLowerPriorityThan(l, r interface{}) bool {
 	ll := l.(models.StockTransaction)
 	rr := r.(models.StockTransaction)
 	if ll.StockPrice > rr.StockPrice {
@@ -37,7 +39,7 @@ func BuyIsLowerPriorityThan(l, r interface{}) bool {
 }
 
 // Prioritize sells by lowest price 1st, then earliest time 2nd.
-func SellIsLowerPriorityThan(l, r interface{}) bool {
+func sellIsLowerPriorityThan(l, r interface{}) bool {
 	ll := l.(models.StockTransaction)
 	rr := r.(models.StockTransaction)
 	if ll.StockPrice < rr.StockPrice {
@@ -49,23 +51,28 @@ func SellIsLowerPriorityThan(l, r interface{}) bool {
 	}
 }
 
-func (books orderbooks) Match(tx models.StockTransaction) {
-	var book = bookMap.book[tx.StockID]
-
-	if books.book[tx.StockID] == nil {
-		books.book[tx.StockID] = new(orderbook)
-		books.book[tx.StockID].buys = skiplist.NewCustomMap(BuyIsLowerPriorityThan)
-		books.book[tx.StockID].sells = skiplist.NewCustomMap(SellIsLowerPriorityThan)
+func getOrderbook(tx models.StockTransaction) *orderbook {
+	if bookMap.book[tx.StockID] == nil {
+		bookMap.book[tx.StockID] = new(orderbook)
+		bookMap.book[tx.StockID].buys = skiplist.NewCustomMap(buyIsLowerPriorityThan)
+		bookMap.book[tx.StockID].sells = skiplist.NewCustomMap(sellIsLowerPriorityThan)
 	}
-
-	if tx.IsBuy {
-		book.MatchBuy(tx)
-	} else {
-		book.MatchSell(tx)
-	}
+	return bookMap.book[tx.StockID]
 }
 
-func (book orderbook) MatchBuy(buyTx models.StockTransaction) {
+func (books orderbooks) Match(tx models.StockTransaction) {
+	var book = getOrderbook(tx)
+
+	if tx.IsBuy {
+		book.matchBuy(tx)
+	} else {
+		book.matchSell(tx)
+	}
+
+	// todo ExecuteOrders(stockTxCommitQueue)
+}
+
+func (book orderbook) matchBuy(buyTx models.StockTransaction) {
 	if book.sells.Len() == 0 {
 		book.buys.Set(buyTx, buyTx)
 	} else {
@@ -91,15 +98,30 @@ func (book orderbook) MatchBuy(buyTx models.StockTransaction) {
 
 }
 
-func (book orderbook) MatchSell(tx models.StockTransaction) {
-	//todo: mirror MatchBuy
+func (book orderbook) matchSell(tx models.StockTransaction) {
+	//todo: mirror matchBuy
 }
 
-func (book orderbook) CancelBuyOrder(tx models.StockTransaction) {
+func (books orderbooks) CancelOrder(tx models.StockTransaction) {
 	if tx.OrderType != "LIMIT" {
 		// todo: report failure/error message to user
 	}
 
+	var book = bookMap.book[tx.StockID]
+	if book == nil {
+		// todo: report failure/error message to user
+	}
+
+	if tx.IsBuy {
+		book.cancelBuyOrder(tx)
+	} else {
+		book.cancelSellOrder(tx)
+	}
+
+	// todo ExecuteOrders(stockTxCommitQueue)
+}
+
+func (book orderbook) cancelBuyOrder(tx models.StockTransaction) {
 	var victimTx, wasFound = book.buys.Get(tx)
 	if wasFound {
 		book.buys.Delete(tx)
@@ -111,11 +133,7 @@ func (book orderbook) CancelBuyOrder(tx models.StockTransaction) {
 	}
 }
 
-func (book orderbook) CancelSellOrder(tx models.StockTransaction) {
-	if tx.OrderType != "LIMIT" {
-		// todo: report failure/error message to user
-	}
-
+func (book orderbook) cancelSellOrder(tx models.StockTransaction) {
 	var victimTx, wasFound = book.sells.Get(tx)
 	if wasFound {
 		book.sells.Delete(tx)
