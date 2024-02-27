@@ -60,7 +60,7 @@ func getOrderbook(tx models.StockTransaction) *orderbook {
 	return bookMap.book[tx.StockID]
 }
 
-func (books orderbooks) Match(tx models.StockTransaction) {
+func Match(tx models.StockTransaction) {
 	var book = getOrderbook(tx)
 
 	if tx.IsBuy {
@@ -102,7 +102,7 @@ func (book orderbook) matchSell(tx models.StockTransaction) {
 	//todo: mirror matchBuy
 }
 
-func (books orderbooks) CancelOrder(tx models.StockTransaction) {
+func CancelOrder(tx models.StockTransaction) {
 	if tx.OrderType != "LIMIT" {
 		// todo: report failure/error message to user
 	}
