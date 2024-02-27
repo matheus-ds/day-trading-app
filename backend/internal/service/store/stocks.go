@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 )
 
@@ -18,7 +19,7 @@ import (
 func (mh *mongoHandler) CreateStock(stockName string) (models.StockCreated, error) {
 	// generate stock id by appending string "StockId" to stockName while making stockname all lowercase
 	// stock_name:"Google", stock_id: <googleStockId>
-	stockID := strings.ToLower(stockName) + "StockId"
+	stockID := strings.ToLower(stockName) + "StockId" + uuid.New().String()
 	stock := models.StockCreated{
 		ID: stockID,
 	}
@@ -46,6 +47,7 @@ func (mh *mongoHandler) AddStockToUser(userName string, stockID string, quantity
 	return nil
 }
 
+// Tested
 func (mh *mongoHandler) GetStockPortfolio(userName string) ([]models.PortfolioItem, error) {
 	// Access the collection where user portfolio data is stored
 	collection := mh.client.Database("day-trading-app").Collection("users")
@@ -61,6 +63,7 @@ func (mh *mongoHandler) GetStockPortfolio(userName string) ([]models.PortfolioIt
 	return user.Stocks, nil
 }
 
+// Tested
 func (mh *mongoHandler) GetStockTransactions() ([]models.StockTransaction, error) {
 	// Access the collection where user portfolio data is stored
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
@@ -90,6 +93,7 @@ func (mh *mongoHandler) GetStockTransactions() ([]models.StockTransaction, error
 	return transactions, nil
 }
 
+// Tested
 func (mh *mongoHandler) GetStockPrices() ([]models.StockPrice, error) {
 	// Access the collection where stock price data is stored
 	collection := mh.client.Database("day-trading-app").Collection("stock_prices")
@@ -118,27 +122,44 @@ func (mh *mongoHandler) GetStockPrices() ([]models.StockPrice, error) {
 	return prices, nil
 }
 
+// Tested
 func (mh *mongoHandler) PlaceStockOrder(userName string, stockID string, isBuy bool, orderType string, quantity int, price float32) error {
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 
 	// add string "Tx" inbetween stockID's name, for example, "googleStockId" becomes "googleStockTxId"
-	index := strings.Index(stockID, "Stock")
-	stockTxID := stockID[:index+len("Stock")] + "Tx" + stockID[index+len("Stock"):]
-	// replace "StockId" with "WalletTxId" in stockID
-	walletTxID := strings.Replace(stockID, "StockId", "WalletTxId", 1)
+	// index := strings.Index(stockID, "Stock")
+	// stockTxID := stockID[:index+len("Stock")] + "Tx" + stockID[index+len("Stock"):]
+	// // replace "StockId" with "WalletTxId" in stockID
+	// walletTxID := strings.Replace(stockID, "StockId", "WalletTxId", 1)
 	// Create a new stock transaction
+	//test use only:
 	transaction := models.StockTransaction{
-		StockTxID:       stockTxID,
+		UserName:        "VanguardETF",
+		StockTxID:       "googleStockTxID",
 		ParentStockTxID: nil, // ParentStockTxID is nil for the first transaction but how do we handle it for subsequent transactions?
-		StockID:         stockID,
-		WalletTxID:      walletTxID,    // WalletTxID
-		OrderStatus:     "IN_PROGRESS", // initial status of the order is "IN_PROGRESS" needs to be updated to "COMPLETED" or "CANCELLED" later
+		StockID:         "googleStockId",
+		WalletTxID:      "googleWalletTxId", // WalletTxID
+		OrderStatus:     "IN_PROGRESS",      // initial status of the order is "IN_PROGRESS" needs to be updated to "COMPLETED" or "CANCELLED" later
 		IsBuy:           isBuy,
 		OrderType:       orderType,
 		StockPrice:      float64(price),
 		Quantity:        quantity,
 		TimeStamp:       time.Now().Unix(), // Use the current time as the timestamp
 	}
+	//Uncomment this line and comment the above line for production
+	// transaction := models.StockTransaction{
+	//	UserName:        userName,
+	// 	StockTxID:       stockTxID,
+	// 	ParentStockTxID: nil, // ParentStockTxID is nil for the first transaction but how do we handle it for subsequent transactions?
+	// 	StockID:         stockID,
+	// 	WalletTxID:      walletTxID,    // WalletTxID
+	// 	OrderStatus:     "IN_PROGRESS", // initial status of the order is "IN_PROGRESS" needs to be updated to "COMPLETED" or "CANCELLED" later
+	// 	IsBuy:           isBuy,
+	// 	OrderType:       orderType,
+	// 	StockPrice:      float64(price),
+	// 	Quantity:        quantity,
+	// 	TimeStamp:       time.Now().Unix(), // Use the current time as the timestamp
+	// }
 	// Insert the new stock transaction into the collection
 	_, err := collection.InsertOne(context.Background(), transaction)
 	if err != nil {
@@ -147,7 +168,8 @@ func (mh *mongoHandler) PlaceStockOrder(userName string, stockID string, isBuy b
 	return nil
 }
 
-func (mh *mongoHandler) UpdateStockOrder(userName string, stockTxID string, orderStatus string) error {
+// NOT TESTED
+func (mh *mongoHandler) UpdateStockOrderStatus(userName string, stockTxID string, orderStatus string) error {
 	// UpdateStockOrder updates the status of a stock transaction with the given stockTxID to have the status "COMPLETED" or "PARTIALLY_FULFILLED"
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 	// Update the stock transaction with the given stockTxID to have the status "COMPLETED" or "PARTIALLY_FULFILLED"
@@ -179,6 +201,8 @@ func (mh *mongoHandler) UpdateStockOrder(userName string, stockTxID string, orde
 	return nil
 
 }
+
+// TESTED
 func (mh *mongoHandler) CancelStockTransaction(userName string, stockTxID string) error {
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 	// Update the stock transaction with the given stockTxID to have the status "CANCELLED"

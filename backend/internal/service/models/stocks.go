@@ -10,6 +10,7 @@ type PortfolioItem struct {
 }
 
 type StockTransaction struct {
+	UserName        string  `json:"userName"        bson:"user_name"`
 	StockTxID       string  `json:"stockTxId"       bson:"stock_tx_id"`
 	ParentStockTxID *string `json:"parentStockTxId" bson:"parent_stock_tx_id"`
 	StockID         string  `json:"stockId"         bson:"stock_id"`

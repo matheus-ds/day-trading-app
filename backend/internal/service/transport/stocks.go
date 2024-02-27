@@ -145,7 +145,7 @@ func (e HTTPEndpoint) PlaceStockOrder(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"data": gin.H{
-				"error": "invalid request",
+				"error": err.Error(),
 			},
 		})
 		return
