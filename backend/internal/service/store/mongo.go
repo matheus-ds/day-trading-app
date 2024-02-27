@@ -27,7 +27,13 @@ func GetMongoHandler() *mongoHandler {
 		defer lock.Unlock()
 		if handler == nil {
 			fmt.Println("Creating mongo single instance now.")
+			// Please connect.
+			client, err := mongo.Connect(context.Background(), options.Client().ApplyURI("mongodb://localhost:27017"))
+			if err != nil {
+				fmt.Println("Error connecting to mongo: ", err)
+			}
 			handler = &mongoHandler{}
+			handler.client = client
 		} else {
 			fmt.Println("Mongo single instance already created.")
 		}
@@ -38,6 +44,7 @@ func GetMongoHandler() *mongoHandler {
 	return handler
 }
 
+// Do we even need this?
 func NewTxInterface() mongoHandler {
 	_, client, _, _ := ConnectMongoDB(&config.Config{})
 	return mongoHandler{
@@ -45,6 +52,7 @@ func NewTxInterface() mongoHandler {
 	}
 }
 
+// Do we even need this?
 func (mh *mongoHandler) BeginMongoTransaction(ctx context.Context, callback func(mongo.SessionContext) (interface{}, error)) (interface{}, error) {
 	session, err := mh.client.StartSession()
 	if err != nil {
@@ -58,6 +66,7 @@ func (mh *mongoHandler) BeginMongoTransaction(ctx context.Context, callback func
 	return result, err
 }
 
+// Do we even need this?
 func ConnectMongoDB(cfg *config.Config) (*mongo.Database, *mongo.Client, func() error, error) {
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)

@@ -10,9 +10,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-// global context with a timeout of 10 seconds
-var ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+// look up context and what it does
+// global context with a timeout of 20 seconds
+// var ctx, cancel = context.WithTimeout(context.Background(), 20*time.Second)
 
+// Tested
 func (mh *mongoHandler) CreateStock(stockName string) (models.StockCreated, error) {
 	// generate stock id by appending string "StockId" to stockName while making stockname all lowercase
 	// stock_name:"Google", stock_id: <googleStockId>
@@ -22,18 +24,22 @@ func (mh *mongoHandler) CreateStock(stockName string) (models.StockCreated, erro
 	}
 	// todo: create stock in db
 	collection := mh.client.Database("day-trading-app").Collection("stocks")
-	_, err := collection.InsertOne(ctx, stock)
-	defer cancel() // Cancel context to release resources if it's no longer needed
+	_, err := collection.InsertOne(context.Background(), stock)
 	if err != nil {
 		return models.StockCreated{}, err
 	}
 	return stock, nil
 }
 
+// Tested
 func (mh *mongoHandler) AddStockToUser(userName string, stockID string, quantity int) error {
 	collection := mh.client.Database("day-trading-app").Collection("users")
-	_, err := collection.UpdateOne(ctx, bson.M{"user_name": userName}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": stockID, "quantity": quantity}}})
-	defer cancel()
+
+	//test use only:
+	_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": "VanguardETF"}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": "googleStockId", "quantity": 550}}})
+
+	//Uncomment this line and comment the above line for production
+	//_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": userName}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": stockID, "quantity": quantity}}})
 	if err != nil {
 		return err
 	}
@@ -46,8 +52,9 @@ func (mh *mongoHandler) GetStockPortfolio(userName string) ([]models.PortfolioIt
 
 	// Find the user by their username
 	var user models.User
-	err := collection.FindOne(ctx, bson.M{"user_name": userName}).Decode(&user)
-	defer cancel()
+	//test use only:
+	err := collection.FindOne(context.Background(), bson.M{"user_name": "VanguardETF"}).Decode(&user)
+	//err := collection.FindOne(context.Background(), bson.M{"user_name": userName}).Decode(&user)
 	if err != nil {
 		return nil, err
 	}
@@ -59,15 +66,15 @@ func (mh *mongoHandler) GetStockTransactions() ([]models.StockTransaction, error
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 
 	// Create a cursor for the find operation
-	cur, err := collection.Find(ctx, bson.M{})
+	cur, err := collection.Find(context.Background(), bson.M{})
 	if err != nil {
 		return nil, err
 	}
-	defer cur.Close(ctx)
+	defer cur.Close(context.Background())
 
 	// Decode the documents into a slice of StockTransaction
 	var transactions []models.StockTransaction
-	for cur.Next(ctx) {
+	for cur.Next(context.Background()) {
 		var transaction models.StockTransaction
 		err := cur.Decode(&transaction)
 		if err != nil {
@@ -75,7 +82,6 @@ func (mh *mongoHandler) GetStockTransactions() ([]models.StockTransaction, error
 		}
 		transactions = append(transactions, transaction)
 	}
-	defer cancel()
 	// Check if the cursor encountered any errors while iterating
 	if err := cur.Err(); err != nil {
 		return nil, err
@@ -89,14 +95,14 @@ func (mh *mongoHandler) GetStockPrices() ([]models.StockPrice, error) {
 	collection := mh.client.Database("day-trading-app").Collection("stock_prices")
 
 	// Create a cursor for the find operation
-	cur, err := collection.Find(ctx, bson.M{})
+	cur, err := collection.Find(context.Background(), bson.M{})
 	if err != nil {
 		return nil, err
 	}
-	defer cur.Close(ctx)
+	defer cur.Close(context.Background())
 	// Decode the documents into a slice of StockPrice
 	var prices []models.StockPrice
-	for cur.Next(ctx) {
+	for cur.Next(context.Background()) {
 		var price models.StockPrice
 		err := cur.Decode(&price)
 		if err != nil {
@@ -104,7 +110,6 @@ func (mh *mongoHandler) GetStockPrices() ([]models.StockPrice, error) {
 		}
 		prices = append(prices, price)
 	}
-	defer cancel()
 	// Check if the cursor encountered any errors while iterating
 	if err := cur.Err(); err != nil {
 		return nil, err
@@ -135,8 +140,7 @@ func (mh *mongoHandler) PlaceStockOrder(userName string, stockID string, isBuy b
 		TimeStamp:       time.Now().Unix(), // Use the current time as the timestamp
 	}
 	// Insert the new stock transaction into the collection
-	_, err := collection.InsertOne(ctx, transaction)
-	defer cancel()
+	_, err := collection.InsertOne(context.Background(), transaction)
 	if err != nil {
 		return err
 	}
@@ -147,8 +151,7 @@ func (mh *mongoHandler) UpdateStockOrder(userName string, stockTxID string, orde
 	// UpdateStockOrder updates the status of a stock transaction with the given stockTxID to have the status "COMPLETED" or "PARTIALLY_FULFILLED"
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 	// Update the stock transaction with the given stockTxID to have the status "COMPLETED" or "PARTIALLY_FULFILLED"
-	_, err := collection.UpdateOne(ctx, bson.M{"stock_tx_id": stockTxID}, bson.M{"$set": bson.M{"order_status": orderStatus}})
-	defer cancel()
+	_, err := collection.UpdateOne(context.Background(), bson.M{"stock_tx_id": stockTxID}, bson.M{"$set": bson.M{"order_status": orderStatus}})
 	if err != nil {
 		return err
 	}
@@ -156,19 +159,19 @@ func (mh *mongoHandler) UpdateStockOrder(userName string, stockTxID string, orde
 	if orderStatus == "COMPLETED" {
 		// get the stock transaction with the given stockTxID
 		var transaction models.StockTransaction
-		err := collection.FindOne(ctx, bson.M{"stock_tx_id": stockTxID}).Decode(&transaction)
+		err := collection.FindOne(context.Background(), bson.M{"stock_tx_id": stockTxID}).Decode(&transaction)
 		if err != nil {
 			return err
 		}
 		// get the user's WalletTransaction
 		collection = mh.client.Database("day-trading-app").Collection("wallet_transactions")
 		var walletTransaction models.WalletTransaction
-		err = collection.FindOne(ctx, bson.M{"wallet_tx_id": transaction.WalletTxID}).Decode(&walletTransaction)
+		err = collection.FindOne(context.Background(), bson.M{"wallet_tx_id": transaction.WalletTxID}).Decode(&walletTransaction)
 		if err != nil {
 			return err
 		}
 		// set wallet_transaction with the given userName
-		_, err = collection.UpdateOne(ctx, bson.M{"wallet_tx_id": transaction.WalletTxID}, bson.M{"$set": bson.M{"user_name": userName}})
+		_, err = collection.UpdateOne(context.Background(), bson.M{"wallet_tx_id": transaction.WalletTxID}, bson.M{"$set": bson.M{"user_name": userName}})
 		if err != nil {
 			return err
 		}
@@ -181,13 +184,12 @@ func (mh *mongoHandler) CancelStockTransaction(userName string, stockTxID string
 	// Update the stock transaction with the given stockTxID to have the status "CANCELLED"
 	// need to check first if transaction is IN_PROGRESS or PARTIALLY_FULFILLED and abort if not. Because some transactions might be too late to cancel.
 	var transaction models.StockTransaction
-	err := collection.FindOne(ctx, bson.M{"stock_tx_id": stockTxID}).Decode(&transaction)
-	defer cancel()
+	err := collection.FindOne(context.Background(), bson.M{"stock_tx_id": stockTxID}).Decode(&transaction)
 	if err != nil {
 		return err
 	}
 	if transaction.OrderStatus != "IN_PROGRESS" && transaction.OrderStatus != "PARTIALLY_FULFILLED" {
-		_, err := collection.UpdateOne(ctx, bson.M{"stock_tx_id": stockTxID}, bson.M{"$set": bson.M{"order_status": "CANCELLED"}})
+		_, err := collection.UpdateOne(context.Background(), bson.M{"stock_tx_id": stockTxID}, bson.M{"$set": bson.M{"order_status": "CANCELLED"}})
 		if err != nil {
 			return err
 		}

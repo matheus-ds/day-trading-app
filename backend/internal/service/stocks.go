@@ -22,7 +22,7 @@ func (s serviceImpl) AddStockToUser(userName string, stockID string, quantity in
 
 	// if not, add the stock to the user
 
-	return errors.New("not implemented")
+	return s.db.AddStockToUser(userName, stockID, quantity)
 }
 
 func (s serviceImpl) GetStockPortfolio(userName string) ([]models.PortfolioItem, error) {
