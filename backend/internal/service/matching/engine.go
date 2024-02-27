@@ -1,21 +1,14 @@
+// The matching engine pairs buy and sell orders to create mutually agreeable transactions.
+
 package matching
 
 import (
 	"day-trading-app/backend/internal/service/models"
-	"fmt"
 
 	"github.com/ryszard/goskiplist/skiplist"
 )
 
-type Element models.StockTransaction
-
-// Implement the interface used in skiplist
-func (e Element) ExtractKey() float64 {
-	return e.StockPrice
-}
-func (e Element) String() string {
-	return fmt.Sprintf("%03d", e.StockPrice)
-}
+// TODO: Optimize for space. Currently stores whole transactions, as both keys and values. Smaller keys is easy.
 
 type orderbook struct {
 	buys  *skiplist.SkipList
@@ -28,27 +21,53 @@ type orderbooks struct {
 var bookMap *orderbooks = new(orderbooks)
 var stockTxCommitQueue []models.StockTransaction
 
+// Define orderings for orderbooks. Sort first by price, then if equal price, by time.
+
+// Prioritize buys by highest price 1st, then earliest time 2nd.
+func BuyIsLowerPriorityThan(l, r interface{}) bool {
+	ll := l.(models.StockTransaction)
+	rr := r.(models.StockTransaction)
+	if ll.StockPrice > rr.StockPrice {
+		return true
+	} else if ll.StockPrice == rr.StockPrice {
+		return ll.TimeStamp < rr.TimeStamp
+	} else {
+		return false
+	}
+}
+
+// Prioritize sells by lowest price 1st, then earliest time 2nd.
+func SellIsLowerPriorityThan(l, r interface{}) bool {
+	ll := l.(models.StockTransaction)
+	rr := r.(models.StockTransaction)
+	if ll.StockPrice < rr.StockPrice {
+		return true
+	} else if ll.StockPrice == rr.StockPrice {
+		return ll.TimeStamp < rr.TimeStamp
+	} else {
+		return false
+	}
+}
+
 func (books orderbooks) Match(tx models.StockTransaction) {
 	var book = bookMap.book[tx.StockID]
 
 	if books.book[tx.StockID] == nil {
 		books.book[tx.StockID] = new(orderbook)
-		// todo Use NewCustomMap (with our own LessThan functions as argument) to sort by both price (1st) and time (2nd).
-		// todo Would need two functions with different time ordering for buys and sells.
-		books.book[tx.StockID].buys = skiplist.NewIntMap()
-		books.book[tx.StockID].sells = skiplist.NewIntMap()
+		books.book[tx.StockID].buys = skiplist.NewCustomMap(BuyIsLowerPriorityThan)
+		books.book[tx.StockID].sells = skiplist.NewCustomMap(SellIsLowerPriorityThan)
 	}
 
 	if tx.IsBuy {
-		book.matchBuy(tx)
+		book.MatchBuy(tx)
 	} else {
-		book.matchSell(tx)
+		book.MatchSell(tx)
 	}
 }
 
-func (book orderbook) matchBuy(buyTx models.StockTransaction) {
+func (book orderbook) MatchBuy(buyTx models.StockTransaction) {
 	if book.sells.Len() == 0 {
-		book.buys.Set(buyTx.StockPrice, buyTx)
+		book.buys.Set(buyTx, buyTx)
 	} else {
 		var sellsHasNext = true
 		var sellIter = book.sells.Iterator()
@@ -72,19 +91,37 @@ func (book orderbook) matchBuy(buyTx models.StockTransaction) {
 
 }
 
-func (book orderbook) matchSell(tx models.StockTransaction) {
-	//todo: mirror matchBuy
+func (book orderbook) MatchSell(tx models.StockTransaction) {
+	//todo: mirror MatchBuy
 }
 
-// TODO: cancel orders
-func (book orderbook) cancelBuyOrder(tx models.StockTransaction) {
+func (book orderbook) CancelBuyOrder(tx models.StockTransaction) {
 	if tx.OrderType != "LIMIT" {
 		// todo: report failure/error message to user
 	}
 
-	var _, wasFound = book.buys.Get(tx)
+	var victimTx, wasFound = book.buys.Get(tx)
 	if wasFound {
-		// todo
+		book.buys.Delete(tx)
+		victimTx := victimTx.(models.StockTransaction)
+		//if !(victimTx.OrderStatus == "PARTIAL_FULFILLED") {} // todo: do we log cancelled orders that did nothing?
+		stockTxCommitQueue = append(stockTxCommitQueue, victimTx)
+	} else {
+		// todo: report failure/error message to user
+	}
+}
+
+func (book orderbook) CancelSellOrder(tx models.StockTransaction) {
+	if tx.OrderType != "LIMIT" {
+		// todo: report failure/error message to user
+	}
+
+	var victimTx, wasFound = book.sells.Get(tx)
+	if wasFound {
+		book.sells.Delete(tx)
+		victimTx := victimTx.(models.StockTransaction)
+		//if !(victimTx.OrderStatus == "PARTIAL_FULFILLED") {} // todo: do we log cancelled orders that did nothing?
+		stockTxCommitQueue = append(stockTxCommitQueue, victimTx)
 	} else {
 		// todo: report failure/error message to user
 	}
