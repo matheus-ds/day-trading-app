@@ -120,7 +120,6 @@ func (book orderbook) matchBuy(buyTx models.StockTransaction) {
 				if buyQuantityRemaining >= lowestSellTx.Quantity {
 					if buyTx.Quantity == lowestSellTx.Quantity { // perfect match, no children
 						buyTx.OrderStatus = "COMPLETED"
-						stockTxCommitQueue = append(stockTxCommitQueue, buyTx)
 					} else {
 						var childTx = createChildTx(buyTx, lowestSellTx, lowestSellTx.Quantity)
 						stockTxCommitQueue = append(stockTxCommitQueue, childTx)
@@ -143,7 +142,10 @@ func (book orderbook) matchBuy(buyTx models.StockTransaction) {
 			sellsHasNext = sellIter.Next()
 		}
 
-		// todo if buy amount remaining & MARKET, change parent transaction to PARTIAL_FULFILLED (and whatever else?) and enqueue
+		if (buyQuantityRemaining > 0) && (buyTx.OrderType == "MARKET") {
+			buyTx.OrderStatus = "PARTIALLY_FULFILLED" // todo: anything else?
+		}
+		stockTxCommitQueue = append(stockTxCommitQueue, buyTx)
 
 		// todo else if LIMIT order, store in engine (with info about amount remaining to fulfill,
 		//      or change Quantity field and let the Order Execution contrast with the already stored IN_PROGRESS tx in database)?
