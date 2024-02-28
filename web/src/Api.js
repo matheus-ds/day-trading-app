@@ -49,7 +49,7 @@ export async function getWalletBalance() {
     };
     //await new Promise(resolve => setTimeout(resolve, 10000));
     return await JSON.parse(
-        '{"success":true, "message":"sorry", "data":{"balance": 100}}'
+        '{"success":true, "data":{"balance": 100}}'
     );
     //{{{return await JSON.parse(axios(options)).data;
 }
@@ -71,7 +71,7 @@ export async function getWalletTransactions() {
         {"wallet_tx_id":"628ba36cf2210df6c3764824",
         "stock_tx_id":"62738363a50350b1fbb243a6",
         "is_debit":false,"amount":200,
-        "time_stamp":"2024-01-12T14:13:25.019+00:00"}], "message": "sorry"}`
+        "time_stamp":"2024-01-12T14:13:25.019+00:00"}]}`
     );
     //{{{return await JSON.parse(axios(options)).data;
 }
@@ -109,7 +109,7 @@ export async function getStockTransactions(amount) {
     //await new Promise(resolve => setTimeout(resolve, 3000));
     return await JSON.parse(
         `
-        {"success":true, "message":"sorry" , "data":[{
+        {"success":true,"data":[{
             "stock_tx_id":"62738363a50350b1fbb243a6",
         "stock_id":1,"wallet_tx_id":"628ba23df2210df6c764823",
         "order_status":"COMPLETED","is_buy":true,"order_type":"LIMIT",
@@ -133,7 +133,7 @@ export async function getStockPrices(amount) {
     //await new Promise(resolve => setTimeout(resolve, 3000));
     return await JSON.parse(
         `
-        {"success":true, "message":"sorry man", "data":[{"stock_id":1,
+        {"success":true,"data":[{"stock_id":1,
         "stock_name":"Apple","current_price":100},
         {"stock_id":1, "stock_name":"Google",
         "current_price": 200}]}
@@ -156,7 +156,7 @@ export async function getStockPortfolio(amount) {
     //await new Promise(resolve => setTimeout(resolve, 3000));
     return await JSON.parse(
         `
-        {"success":true,"message":"nope", "data":[{
+        {"success":true,"data":[{
             "stock_id":1,"stock_name":"Apple",
             "quantity_owned":100},{
         "stock_id":2,"stock_name":"Google",
@@ -180,7 +180,7 @@ export async function placeStockOrder(id, type, quantity, price) {
     };
     await new Promise(resolve => setTimeout(resolve, 3000));
     return await JSON.parse(
-        '{"success":true,"message":"nope", "data":null}'
+        '{"success":true, "data":null}'
     );
     //{{{return await JSON.parse(axios(options)).data;
 }

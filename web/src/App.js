@@ -16,7 +16,6 @@ import StockOrder from './StockOrder/StockOrder.js'
 import CancelStock from './StockOrder/CancelStock.js'
 
 import * as api from './Api.js'
-import { Button } from 'react-bootstrap';
 
 
 
@@ -26,7 +25,7 @@ const PageWrapper = styled('div')`
 
 
 function Router() {
-  const [authtoken , setAuthtoken ] = useState(false);
+  const [authtoken , setAuthtoken ] = useState(true);
   const navigate = useNavigate();
 
   function authenticate(username, password) {
@@ -40,8 +39,6 @@ function Router() {
   }
 
   return (
-    <div>
-
     <Routes>
       <Route element={authtoken ? <Outlet/> : <Navigate to="/login"/>}>
         <Route element={<Main/>}>
@@ -57,7 +54,6 @@ function Router() {
       <Route path="/register" element={<Register />} />
       </Route>
     </Routes>
-    </div>
   )
 }
 

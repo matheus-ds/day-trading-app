@@ -3,7 +3,6 @@ import * as api from '../Api.js'
 
 
 const Balance = () => {
-  const [err, setErr] = useState(false);
   const [val, setVal] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -16,11 +15,10 @@ const Balance = () => {
         
         // Fetch data from API
         const data = await api.getWalletBalance();
-        setErr(!data.success);
         if (data.success) {
             setVal(data.data.balance);
         } else {
-          setVal(data.message);
+            alert(data.message);
         }
         setLoading(false); 
       } catch (error) {
@@ -39,7 +37,7 @@ const Balance = () => {
         <h1>{'Balance: Loading....'}</h1>
       ) : (
         <div>
-          <h1>{'Balance: '  + (err ? '(error) ' : '') + val}</h1>
+          <h1>{'Balance: '  + val}</h1>
         </div>
       )}
     </div>

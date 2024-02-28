@@ -5,7 +5,6 @@ import * as api from '../Api.js'
 
 
 const WalletTransactions = () => {
-  const [err, setErr] = useState(false);
   const [val, setVal] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -18,14 +17,14 @@ const WalletTransactions = () => {
         
         // Fetch data from API
         const data = await api.getWalletTransactions();
-        setErr(!data.success);
         if (data.success) {
-          setVal(data.data);
+            setVal(data.data);
         } else {
-            setVal(data.message);
+            alert(data.message);
         }
         setLoading(false); 
       } catch (error) {
+        setVal(error);
         console.error('Error fetching data:', error);
         setLoading(false);
       }
@@ -38,11 +37,10 @@ const WalletTransactions = () => {
 
 
   return (
-    <div style={{marginTop: 40}}>
-      <h1>{'Transactions'}</h1>
+    <div>
       {loading ? (
-        <h3>{'Loading....'}</h3>
-      ) : (err ? (<h2>'(error) '{val}</h2>) : (
+        <h1>{'Transactions: Loading....'}</h1>
+      ) : (
         <div>
         <h2>Transaction Data</h2>
         <Table striped bordered hover>
@@ -63,7 +61,7 @@ const WalletTransactions = () => {
                         ))}
             </tbody>
         </Table>
-    </div>)
+    </div>
       )
     }
     </div>
