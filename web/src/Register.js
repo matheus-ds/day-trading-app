@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
 import { Form, Button } from 'react-bootstrap';
 import { useNavigate } from "react-router-dom";
-import * as api from './Api.js'
 
-const Login = (props) => {
-
-
+const Register = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
+
   const handleSubmit = (event) => {
     event.preventDefault();
-    // Here you can add your login logic
+    // Here you can add your Register logic
     console.log('Email:', email);
     console.log('Password:', password);
     // Reset the form
@@ -23,7 +21,7 @@ const Login = (props) => {
     <div className="container">
       <div className="row justify-content-center">
         <div className="col-md-6">
-          <h2 className="text-center mb-4">Login</h2>
+          <h2 className="text-center mb-4">Register</h2>
           <Form onSubmit={handleSubmit}>
             <Form.Group controlId="formBasicEmail">
               <Form.Label>Email address</Form.Label>
@@ -45,12 +43,12 @@ const Login = (props) => {
               />
             </Form.Group>
             <div style={{paddingTop: 30}}>
-            <Button onClick={() => props.login(email, password)} variant="primary" type="submit" block>
-              Login
-            </Button>
-            <Button onClick={() => navigate('/register')}
-            style={{marginLeft: 10}} variant="primary" type="submit" block>
+            <Button variant="primary" type="submit" block>
               Register
+            </Button>
+            <Button onClick={() => navigate('/login')}
+             style={{marginLeft: 10}} variant="primary" type="submit" block>
+              Already resigterd? Sign in
             </Button>
             </div>
           </Form>
@@ -60,4 +58,5 @@ const Login = (props) => {
   );
 };
 
-export default Login;
+export default Register;
+
