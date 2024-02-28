@@ -6,6 +6,7 @@ package matching
 
 import (
 	"day-trading-app/backend/internal/service/models"
+	"time"
 
 	"github.com/ryszard/goskiplist/skiplist"
 )
@@ -51,6 +52,15 @@ func sellIsLowerPriorityThan(l, r interface{}) bool {
 	}
 }
 
+// Returns true if transaction's timestamp is over 15 minutes old.
+func isExpired(tx models.StockTransaction) bool {
+	if tx.OrderType == "LIMIT" { // todo: this check is probably unnecessary
+		return time.Now().Unix()+(15*60) >= tx.TimeStamp
+	} else {
+		return false
+	}
+}
+
 func getOrderbook(tx models.StockTransaction) *orderbook {
 	if bookMap.book[tx.StockID] == nil {
 		bookMap.book[tx.StockID] = new(orderbook)
@@ -58,6 +68,19 @@ func getOrderbook(tx models.StockTransaction) *orderbook {
 		bookMap.book[tx.StockID].sells = skiplist.NewCustomMap(sellIsLowerPriorityThan)
 	}
 	return bookMap.book[tx.StockID]
+}
+
+// Create child transaction based on parentTx, ordering full quantity of otherTx.
+func createChildTx(parentTx models.StockTransaction, otherTx models.StockTransaction, quantityTraded int) models.StockTransaction {
+	var childTx = parentTx
+	childTx.ParentStockTxID = &parentTx.StockTxID
+	// childTx.StockTxID = TODO child StockTxID scheme? Should this be decided by Order Execution?
+	childTx.StockPrice = otherTx.StockPrice
+	childTx.Quantity = quantityTraded
+	// childTx.TimeStamp = TODO do we change timestamp?
+
+	childTx.OrderStatus = "COMPLETED"
+	return childTx
 }
 
 func Match(tx models.StockTransaction) {
@@ -74,26 +97,56 @@ func Match(tx models.StockTransaction) {
 
 func (book orderbook) matchBuy(buyTx models.StockTransaction) {
 	if book.sells.Len() == 0 {
-		book.buys.Set(buyTx, buyTx)
+		if buyTx.OrderType == "LIMIT" {
+			book.buys.Set(buyTx, buyTx)
+		} else { // "MARKET"
+			buyTx.OrderStatus = "UNFULFILLED" // todo: should this be handled differently?
+			stockTxCommitQueue = append(stockTxCommitQueue, buyTx)
+		}
+
 	} else {
 		var sellsHasNext = true
 		var sellIter = book.sells.Iterator()
 		var buyQuantityRemaining = buyTx.Quantity
+		var childTxCount = 0 // todo: do we need this?
 
 		for buyQuantityRemaining > 0 && sellsHasNext { // todo &&
 			lowestSellTx := sellIter.Value().(models.StockTransaction)
-			if buyTx.Quantity >= lowestSellTx.Quantity { // todo: && !(isLimit && expired)
-				// todo create and commit fulfilled child transaction
-
+			if isExpired(lowestSellTx) {
 				book.sells.Delete(lowestSellTx)
-				lowestSellTx.OrderStatus = "COMPLETED"
+				lowestSellTx.OrderStatus = "EXPIRED" // todo
 				stockTxCommitQueue = append(stockTxCommitQueue, lowestSellTx)
-			}
+			} else {
+				if buyQuantityRemaining >= lowestSellTx.Quantity {
+					if buyTx.Quantity == lowestSellTx.Quantity { // perfect match, no children
+						buyTx.OrderStatus = "COMPLETED"
+						stockTxCommitQueue = append(stockTxCommitQueue, buyTx)
+					} else {
+						var childTx = createChildTx(buyTx, lowestSellTx, lowestSellTx.Quantity)
+						stockTxCommitQueue = append(stockTxCommitQueue, childTx)
+						childTxCount++
+					}
 
+					book.sells.Delete(lowestSellTx)
+					lowestSellTx.OrderStatus = "COMPLETED"
+					stockTxCommitQueue = append(stockTxCommitQueue, lowestSellTx)
+				} else { // buyQuantityRemaining < lowestSellTx.Quantity
+					var childTx = createChildTx(buyTx, lowestSellTx, buyQuantityRemaining)
+					stockTxCommitQueue = append(stockTxCommitQueue, childTx)
+					childTxCount++
+
+					// todo handle sell LIMIT if IN_PROGRESS vs PARTIALLY_FULFILLED
+
+				}
+			}
+			buyQuantityRemaining -= lowestSellTx.Quantity
 			sellsHasNext = sellIter.Next()
 		}
 
-		// todo if buy amount remaining, change parent transaction to partial_fulfilled, and whatever else
+		// todo if buy amount remaining & MARKET, change parent transaction to PARTIAL_FULFILLED (and whatever else?) and enqueue
+
+		// todo else if LIMIT order, store in engine (with info about amount remaining to fulfill,
+		//      or change Quantity field and let the Order Execution contrast with the already stored IN_PROGRESS tx in database)?
 	}
 
 }
@@ -104,7 +157,7 @@ func (book orderbook) matchSell(tx models.StockTransaction) {
 
 func CancelOrder(tx models.StockTransaction) {
 	if tx.OrderType != "LIMIT" {
-		// todo: report failure/error message to user
+		// todo: report failure/error message to user. Actually, this should probably be handled earlier than the matcher.
 	}
 
 	var book = bookMap.book[tx.StockID]
