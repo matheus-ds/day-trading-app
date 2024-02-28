@@ -5,6 +5,7 @@ import * as api from '../Api.js'
 
 
 const StockPrices = () => {
+  const [err, setErr] = useState(false);
   const [val, setVal] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -17,10 +18,11 @@ const StockPrices = () => {
         
         // Fetch data from API
         const data = await api.getStockPrices();
+        setErr(!data.success);
         if (data.success) {
-            setVal(data.data);
+          setVal(data.data);
         } else {
-            alert(data.message);
+            setVal(data.message);
         }
         setLoading(false); 
       } catch (error) {
@@ -35,12 +37,16 @@ const StockPrices = () => {
 
   let rows = ["stock id","stock name","current price"]
 
-
+  try {
+    
+  } catch (error) {
+    
+  }
   return (
     <div style={{paddingTop: 40}}>
       {loading ? (
         <h1>{'Stock Prices: Loading....'}</h1>
-      ) : (
+      ) : ( err ? (<h2>Stock Prices (error) : {val}</h2>) : (
         <div>
         <h2>Stock Prices</h2>
         <Table striped bordered hover>
@@ -61,7 +67,7 @@ const StockPrices = () => {
                         ))}
             </tbody>
         </Table>
-    </div>
+    </div>)
       )
     }
     </div>

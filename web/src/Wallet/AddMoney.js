@@ -23,7 +23,8 @@ function AddMoney() {
     }
 
   return (
-    <div>
+    <div style={{marginTop: 70}}>
+      <h1>Add Money</h1>
         {loading ? (<h3>Loading....</h3>) : (
       <InputGroup className="mb-3">
         <Button onClick={submit} variant="outline-secondary" id="button-addon1">
