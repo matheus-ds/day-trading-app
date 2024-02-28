@@ -71,7 +71,7 @@ const StockOrder = () => {
           <Button type="submit" onClick={() => api.placeStockOrder(
             stockid, ordertype ? 'LIMIT' : 'MARKET', quantity, price
           )} variant="primary" block>
-            Login
+            Submit
           </Button>
           </div>
         </Form>
