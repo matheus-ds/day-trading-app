@@ -25,7 +25,7 @@ type Service interface {
 
 type Database interface {
 	// users
-	RegisterUser(userName, password string) error
+	RegisterUser(userName, password, name string) error
 	GetUserByUserName(userName string) (models.User, error)
 
 	// stocks

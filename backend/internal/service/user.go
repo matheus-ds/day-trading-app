@@ -43,6 +43,6 @@ func (s serviceImpl) RegisterUser(userName, password, name string) error {
 		return err
 	}
 
-	err = s.db.RegisterUser(userName, string(hashedPassword))
+	err = s.db.RegisterUser(userName, string(hashedPassword), name)
 	return err
 }
