@@ -1,9 +1,9 @@
 package models
 
 type StockCreated struct {
-	ID           string  `json:"stockId" bson:"stock_id"`
-	StockName    string  `json:"stockName" bson:"stock_name"`
-	CurrentPrice float64 `json:"currentPrice" bson:"current_price"`
+	ID           string `json:"stockId" bson:"stock_id"`
+	StockName    string `json:"stockName" bson:"stock_name"`
+	CurrentPrice int    `json:"currentPrice" bson:"current_price"`
 }
 
 type PortfolioItem struct {
@@ -20,13 +20,13 @@ type StockTransaction struct {
 	OrderStatus     string  `json:"orderStatus"     bson:"order_status"`
 	IsBuy           bool    `json:"isBuy"           bson:"is_buy"`
 	OrderType       string  `json:"orderType"       bson:"order_type"`
-	StockPrice      float64 `json:"stockPrice"      bson:"stock_price"`
+	StockPrice      int     `json:"stockPrice"      bson:"stock_price"`
 	Quantity        int     `json:"quantity"        bson:"quantity"`
 	TimeStamp       int64   `json:"timeStamp"       bson:"time_stamp"`
 }
 
 type StockPrice struct {
-	StockID      string  `json:"stockId"      bson:"stock_id"`
-	StockName    string  `json:"stockName"    bson:"stock_name"`
-	CurrentPrice float64 `json:"currentPrice" bson:"current_price"`
+	StockID      string `json:"stockId"      bson:"stock_id"`
+	StockName    string `json:"stockName"    bson:"stock_name"`
+	CurrentPrice int    `json:"currentPrice" bson:"current_price"`
 }

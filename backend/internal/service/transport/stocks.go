@@ -130,11 +130,11 @@ func (e HTTPEndpoint) GetStockPrices(c *gin.Context) {
 }
 
 type PlaceStockReq struct {
-	StockID   string  `json:"stock_id"`
-	IsBuy     bool    `json:"is_buy"`
-	OrderType string  `json:"order_type"`
-	Quantity  int     `json:"quantity"`
-	Price     float32 `json:"price"`
+	StockID   string `json:"stock_id"`
+	IsBuy     bool   `json:"is_buy"`
+	OrderType string `json:"order_type"`
+	Quantity  int    `json:"quantity"`
+	Price     int    `json:"price"`
 }
 
 func (e HTTPEndpoint) PlaceStockOrder(c *gin.Context) {

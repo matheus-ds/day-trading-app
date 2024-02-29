@@ -6,7 +6,7 @@ import (
 	"day-trading-app/backend/internal/service/models"
 )
 
-func (s serviceImpl) AddMoneyToWallet(userName string, amount float32) error {
+func (s serviceImpl) AddMoneyToWallet(userName string, amount int) error {
 
 	if amount <= 0 {
 		return errors.New("amount must be greater than 0")
@@ -20,7 +20,7 @@ func (s serviceImpl) AddMoneyToWallet(userName string, amount float32) error {
 	return s.db.SetWalletBalance(userName, newBalance)
 }
 
-func (s serviceImpl) GetWalletBalance(userName string) (float32, error) {
+func (s serviceImpl) GetWalletBalance(userName string) (int, error) {
 	return s.db.GetWalletBalance(userName)
 }
 
