@@ -10,31 +10,78 @@ import (
 
 const AccessTokenDuration = 60 * 60 * 24 * 7 // 7 days
 
+type AuthenticateUserReq struct {
+	UserName string `json:"user_name"`
+	Password string `json:"password"`
+}
+
 func (e HTTPEndpoint) AuthenticateUser(c *gin.Context) {
-	// TODO: grab from request payload
-	email := "example"
-	password := "example"
+	var user RegisterReq
 
-	token, err := e.srv.AuthenticateUser(email, password)
+	if err := c.BindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"data": gin.H{
+				"error": err.Error(),
+			},
+		})
+		return
+	}
 
-	if err == nil {
-		c.SetCookie("access_token", string(token), AccessTokenDuration, "/", "", true, true)
+	token, err := e.srv.AuthenticateUser(user.UserName, user.Password)
 
-		c.JSON(http.StatusOK, gin.H{})
-		logger.Info("authenticated user")
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"data": gin.H{
+				"error": err.Error(),
+			},
+		})
+		logger.Error("failed to authenticate user", logger.ErrorType(err), logger.String("userName", user.UserName))
 
 		return
 	}
 
-	c.JSON(http.StatusUnauthorized, gin.H{
-		"error": "failed to authenticate user",
-		"email": email,
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"token": token,
+		},
 	})
-	logger.Error("failed to authenticate user", logger.ErrorType(err), logger.String("email", email))
+	logger.Info("authenticated user", logger.String("userName", user.UserName))
+}
+
+type RegisterReq struct {
+	UserName string `json:"user_name"`
+	Password string `json:"password"`
+	Name     string `json:"name"`
 }
 
 func (e HTTPEndpoint) Register(c *gin.Context) {
-	// TODO: implement
+	var user RegisterReq
 
-	c.JSON(http.StatusOK, gin.H{})
+	if err := c.BindJSON(&user); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"data": gin.H{
+				"error": err.Error(),
+			},
+		})
+		return
+	}
+
+	err := e.srv.RegisterUser(user.UserName, user.Password, user.Name)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"data": gin.H{
+				"error": err.Error(),
+			},
+		})
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{
+		"success": true,
+		"data":    nil,
+	})
 }

@@ -7,7 +7,7 @@ import (
 )
 
 type WalletAmount struct {
-	Amount float32 `json:"amount"`
+	Amount int `json:"amount"`
 }
 
 func (e HTTPEndpoint) AddMoneyToWallet(c *gin.Context) {

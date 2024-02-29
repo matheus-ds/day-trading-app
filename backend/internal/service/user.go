@@ -29,3 +29,20 @@ func (s serviceImpl) AuthenticateUser(userName, password string) (string, error)
 	token, err := jwt.GenerateToken(user.UserName)
 	return token, err
 }
+
+func (s serviceImpl) RegisterUser(userName, password, name string) error {
+	userName = strings.TrimSpace(userName)
+
+	_, err := s.db.GetUserByUserName(userName)
+	if err == nil {
+		return err // user already exists
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	err = s.db.RegisterUser(userName, string(hashedPassword), name)
+	return err
+}

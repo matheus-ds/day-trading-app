@@ -6,6 +6,7 @@ import (
 
 type Service interface {
 	AuthenticateUser(userName, password string) (string, error)
+	RegisterUser(userName, password, name string) error
 
 	// stocks
 	CreateStock(stockName string) (models.StockCreated, error)
@@ -13,18 +14,18 @@ type Service interface {
 	GetStockPortfolio(userName string) ([]models.PortfolioItem, error)
 	GetStockTransactions() ([]models.StockTransaction, error)
 	GetStockPrices() ([]models.StockPrice, error)
-	PlaceStockOrder(userName, stockID string, isBuy bool, orderType string, quantity int, price float32) error
+	PlaceStockOrder(userName, stockID string, isBuy bool, orderType string, quantity int, price int) error
 	CancelStockTransaction(userName, stockTxID string) error
 
 	// wallet
-	AddMoneyToWallet(userName string, amount float32) error
-	GetWalletBalance(userName string) (float32, error)
+	AddMoneyToWallet(userName string, amount int) error
+	GetWalletBalance(userName string) (int, error)
 	GetWalletTransactions(userName string) ([]models.WalletTransaction, error)
 }
 
 type Database interface {
 	// users
-	RegisterUser(userName, password string) error
+	RegisterUser(userName, password, name string) error
 	GetUserByUserName(userName string) (models.User, error)
 
 	// stocks
@@ -33,13 +34,13 @@ type Database interface {
 	GetStockPortfolio(userName string) ([]models.PortfolioItem, error)
 	GetStockTransactions() ([]models.StockTransaction, error)
 	GetStockPrices() ([]models.StockPrice, error)
-	PlaceStockOrder(userName string, stockID string, isBuy bool, orderType string, quantity int, price float32) error
+	PlaceStockOrder(userName string, stockID string, isBuy bool, orderType string, quantity int, price int) error
 	UpdateStockOrderStatus(userName string, stockTxID string, orderStatus string) error //for the matching engine to update the status of the order
 	CancelStockTransaction(userName string, stockTxID string) error
 
 	// wallet
-	SetWalletBalance(userName string, newBalance float32) error
-	GetWalletBalance(userName string) (float32, error)
+	SetWalletBalance(userName string, newBalance int) error
+	GetWalletBalance(userName string) (int, error)
 	GetWalletTransactions(userName string) ([]models.WalletTransaction, error)
 }
 

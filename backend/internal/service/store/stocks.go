@@ -126,7 +126,7 @@ func (mh *mongoHandler) GetStockPrices() ([]models.StockPrice, error) {
 }
 
 // Tested
-func (mh *mongoHandler) PlaceStockOrder(userName string, stockID string, isBuy bool, orderType string, quantity int, price float32) error {
+func (mh *mongoHandler) PlaceStockOrder(userName string, stockID string, isBuy bool, orderType string, quantity int, price int) error {
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 	// add string "Tx" inbetween stockID's name, for example, "googleStockId" becomes "googleStockTxId"
 	index := strings.Index(stockID, "Stock")
@@ -145,7 +145,7 @@ func (mh *mongoHandler) PlaceStockOrder(userName string, stockID string, isBuy b
 	// 	OrderStatus:     "IN_PROGRESS",      // initial status of the order is "IN_PROGRESS" needs to be updated to "COMPLETED" or "CANCELLED" later
 	// 	IsBuy:           isBuy,
 	// 	OrderType:       orderType,
-	// 	StockPrice:      float64(price),
+	// 	StockPrice:      price,
 	// 	Quantity:        quantity,
 	// 	TimeStamp:       time.Now().Unix(), // Use the current time as the timestamp
 	// }
@@ -160,7 +160,7 @@ func (mh *mongoHandler) PlaceStockOrder(userName string, stockID string, isBuy b
 		OrderStatus:     "IN_PROGRESS", // initial status of the order is "IN_PROGRESS" needs to be updated to "COMPLETED" or "CANCELLED" later
 		IsBuy:           isBuy,
 		OrderType:       orderType,
-		StockPrice:      float64(price),
+		StockPrice:      price,
 		Quantity:        quantity,
 		TimeStamp:       time.Now().Unix(), // Use the current time as the timestamp
 	}

@@ -8,10 +8,10 @@ import (
 )
 
 // Not Tested due to Register not implemented
-func (mh *mongoHandler) RegisterUser(userName, password string) error {
+func (mh *mongoHandler) RegisterUser(userName, password, name string) error {
 	//create user in db
 	collection := mh.client.Database("day-trading-app").Collection("users")
-	_, err := collection.InsertOne(context.Background(), models.User{UserName: userName, PasswordHash: password})
+	_, err := collection.InsertOne(context.Background(), models.User{UserName: userName, PasswordHash: password, Name: name})
 	if err != nil {
 		return err
 	}
@@ -52,7 +52,7 @@ func (mh *mongoHandler) GetWalletTransactions(userName string) ([]models.WalletT
 }
 
 // Tested
-func (mh *mongoHandler) GetWalletBalance(userName string) (float32, error) {
+func (mh *mongoHandler) GetWalletBalance(userName string) (int, error) {
 	//For testing purposes only:
 	//userName = "VanguardETF"
 	//access the collection where user data is stored
@@ -68,7 +68,7 @@ func (mh *mongoHandler) GetWalletBalance(userName string) (float32, error) {
 }
 
 // Tested
-func (mh *mongoHandler) SetWalletBalance(userName string, newBalance float32) error {
+func (mh *mongoHandler) SetWalletBalance(userName string, newBalance int) error {
 	//For testing purposes only:
 	//userName = "VanguardETF"
 	//newBalance = 100000

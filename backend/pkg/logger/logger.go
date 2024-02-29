@@ -33,10 +33,6 @@ func Duration(k string, d time.Duration) Field {
 	return zap.Duration(k, d)
 }
 
-func Float64(key string, val float64) Field {
-	return zap.Float64(key, val)
-}
-
 func Time(key string, val time.Time) Field {
 	return zap.Time(key, val)
 }
