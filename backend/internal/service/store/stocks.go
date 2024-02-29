@@ -21,7 +21,9 @@ func (mh *mongoHandler) CreateStock(stockName string) (models.StockCreated, erro
 	// stock_name:"Google", stock_id: <googleStockId>
 	stockID := strings.ToLower(stockName) + "StockId" + uuid.New().String()
 	stock := models.StockCreated{
-		ID: stockID,
+		ID:           stockID,
+		StockName:    stockName,
+		CurrentPrice: 0.0, // initial stock price is 0
 	}
 	// todo: create stock in db
 	collection := mh.client.Database("day-trading-app").Collection("stocks")
@@ -37,10 +39,10 @@ func (mh *mongoHandler) AddStockToUser(userName string, stockID string, quantity
 	collection := mh.client.Database("day-trading-app").Collection("users")
 
 	//test use only:
-	_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": "VanguardETF"}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": "googleStockId", "quantity": 550}}})
+	//_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": "VanguardETF"}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": "googleStockId", "quantity": 550}}})
 
 	//Uncomment this line and comment the above line for production
-	//_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": userName}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": stockID, "quantity": quantity}}})
+	_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": userName}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": stockID, "quantity": quantity}}})
 	if err != nil {
 		return err
 	}
@@ -55,8 +57,9 @@ func (mh *mongoHandler) GetStockPortfolio(userName string) ([]models.PortfolioIt
 	// Find the user by their username
 	var user models.User
 	//test use only:
-	err := collection.FindOne(context.Background(), bson.M{"user_name": "VanguardETF"}).Decode(&user)
-	//err := collection.FindOne(context.Background(), bson.M{"user_name": userName}).Decode(&user)
+	//err := collection.FindOne(context.Background(), bson.M{"user_name": "VanguardETF"}).Decode(&user)
+	//Uncomment line below and comment the above line for production
+	err := collection.FindOne(context.Background(), bson.M{"user_name": userName}).Decode(&user)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +99,7 @@ func (mh *mongoHandler) GetStockTransactions() ([]models.StockTransaction, error
 // Tested
 func (mh *mongoHandler) GetStockPrices() ([]models.StockPrice, error) {
 	// Access the collection where stock price data is stored
-	collection := mh.client.Database("day-trading-app").Collection("stock_prices")
+	collection := mh.client.Database("day-trading-app").Collection("stocks")
 
 	// Create a cursor for the find operation
 	cur, err := collection.Find(context.Background(), bson.M{})
@@ -125,41 +128,43 @@ func (mh *mongoHandler) GetStockPrices() ([]models.StockPrice, error) {
 // Tested
 func (mh *mongoHandler) PlaceStockOrder(userName string, stockID string, isBuy bool, orderType string, quantity int, price float32) error {
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
-
 	// add string "Tx" inbetween stockID's name, for example, "googleStockId" becomes "googleStockTxId"
-	// index := strings.Index(stockID, "Stock")
-	// stockTxID := stockID[:index+len("Stock")] + "Tx" + stockID[index+len("Stock"):]
-	// // replace "StockId" with "WalletTxId" in stockID
-	// walletTxID := strings.Replace(stockID, "StockId", "WalletTxId", 1)
+	index := strings.Index(stockID, "Stock")
+	stockTxID := stockID[:index+len("Stock")] + "Tx" + stockID[index+len("Stock"):]
+	// replace "StockId" with "WalletTxId" in stockID
+	walletTxID := strings.Replace(stockID, "StockId", "WalletTxId", 1)
+
 	// Create a new stock transaction
-	//test use only:
-	transaction := models.StockTransaction{
-		UserName:        "VanguardETF",
-		StockTxID:       "googleStockTxID",
-		ParentStockTxID: nil, // ParentStockTxID is nil for the first transaction but how do we handle it for subsequent transactions?
-		StockID:         "googleStockId",
-		WalletTxID:      "googleWalletTxId", // WalletTxID
-		OrderStatus:     "IN_PROGRESS",      // initial status of the order is "IN_PROGRESS" needs to be updated to "COMPLETED" or "CANCELLED" later
-		IsBuy:           isBuy,
-		OrderType:       orderType,
-		StockPrice:      float64(price),
-		Quantity:        quantity,
-		TimeStamp:       time.Now().Unix(), // Use the current time as the timestamp
-	}
-	//Uncomment this line and comment the above line for production
+	// //test use only:
 	// transaction := models.StockTransaction{
-	//	UserName:        userName,
-	// 	StockTxID:       stockTxID,
+	// 	UserName:        "VanguardETF",
+	// 	StockTxID:       "googleStockTxID",
 	// 	ParentStockTxID: nil, // ParentStockTxID is nil for the first transaction but how do we handle it for subsequent transactions?
-	// 	StockID:         stockID,
-	// 	WalletTxID:      walletTxID,    // WalletTxID
-	// 	OrderStatus:     "IN_PROGRESS", // initial status of the order is "IN_PROGRESS" needs to be updated to "COMPLETED" or "CANCELLED" later
+	// 	StockID:         "googleStockId",
+	// 	WalletTxID:      "googleWalletTxId", // WalletTxID
+	// 	OrderStatus:     "IN_PROGRESS",      // initial status of the order is "IN_PROGRESS" needs to be updated to "COMPLETED" or "CANCELLED" later
 	// 	IsBuy:           isBuy,
 	// 	OrderType:       orderType,
 	// 	StockPrice:      float64(price),
 	// 	Quantity:        quantity,
 	// 	TimeStamp:       time.Now().Unix(), // Use the current time as the timestamp
 	// }
+
+	//Uncomment this line and comment the above line for production
+	transaction := models.StockTransaction{
+		UserName:        userName,
+		StockTxID:       stockTxID,
+		ParentStockTxID: nil, // ParentStockTxID is nil for the first transaction but how do we handle it for subsequent transactions?
+		StockID:         stockID,
+		WalletTxID:      walletTxID,    // WalletTxID
+		OrderStatus:     "IN_PROGRESS", // initial status of the order is "IN_PROGRESS" needs to be updated to "COMPLETED" or "CANCELLED" later
+		IsBuy:           isBuy,
+		OrderType:       orderType,
+		StockPrice:      float64(price),
+		Quantity:        quantity,
+		TimeStamp:       time.Now().Unix(), // Use the current time as the timestamp
+	}
+
 	// Insert the new stock transaction into the collection
 	_, err := collection.InsertOne(context.Background(), transaction)
 	if err != nil {

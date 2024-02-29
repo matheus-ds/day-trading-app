@@ -7,6 +7,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
+// Not Tested due to Register not implemented
 func (mh *mongoHandler) RegisterUser(userName, password string) error {
 	//create user in db
 	collection := mh.client.Database("day-trading-app").Collection("users")
@@ -17,6 +18,7 @@ func (mh *mongoHandler) RegisterUser(userName, password string) error {
 	return nil
 }
 
+// Not Tested, No Postman Collection
 func (mh *mongoHandler) GetUserByUserName(userName string) (models.User, error) {
 	// Access the collection where user data is stored
 	collection := mh.client.Database("day-trading-app").Collection("users")
@@ -30,7 +32,10 @@ func (mh *mongoHandler) GetUserByUserName(userName string) (models.User, error) 
 	return user, nil
 }
 
+// Tested
 func (mh *mongoHandler) GetWalletTransactions(userName string) ([]models.WalletTransaction, error) {
+	//For testing purposes only:
+	//userName = "VanguardETF"
 	// Access the collection where user data is stored
 	collection := mh.client.Database("day-trading-app").Collection("wallet_transactions")
 
@@ -46,7 +51,10 @@ func (mh *mongoHandler) GetWalletTransactions(userName string) ([]models.WalletT
 	return walletTransactions, nil
 }
 
+// Tested
 func (mh *mongoHandler) GetWalletBalance(userName string) (float32, error) {
+	//For testing purposes only:
+	//userName = "VanguardETF"
 	//access the collection where user data is stored
 	collection := mh.client.Database("day-trading-app").Collection("users")
 
@@ -59,7 +67,11 @@ func (mh *mongoHandler) GetWalletBalance(userName string) (float32, error) {
 	return user.Balance, nil
 }
 
+// Tested
 func (mh *mongoHandler) SetWalletBalance(userName string, newBalance float32) error {
+	//For testing purposes only:
+	//userName = "VanguardETF"
+	//newBalance = 100000
 	// Access the collection where user data is stored
 	collection := mh.client.Database("day-trading-app").Collection("users")
 

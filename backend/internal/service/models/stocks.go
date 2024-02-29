@@ -1,7 +1,9 @@
 package models
 
 type StockCreated struct {
-	ID string `json:"stockId" bson:"stock_id"`
+	ID           string  `json:"stockId" bson:"stock_id"`
+	StockName    string  `json:"stockName" bson:"stock_name"`
+	CurrentPrice float64 `json:"currentPrice" bson:"current_price"`
 }
 
 type PortfolioItem struct {
