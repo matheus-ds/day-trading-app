@@ -130,7 +130,7 @@ func (mh *mongoHandler) PlaceStockOrder(userName string, stockID string, isBuy b
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 	// add string "Tx" inbetween stockID's name, for example, "googleStockId" becomes "googleStockTxId"
 	index := strings.Index(stockID, "Stock")
-	stockTxID := stockID[:index+len("Stock")] + "Tx" + stockID[index+len("Stock"):]
+	stockTxID := stockID[:index+len("Stock")] + "Tx" + stockID[index+len("Stock"):] + uuid.New().String()
 	// replace "StockId" with "WalletTxId" in stockID
 	walletTxID := strings.Replace(stockID, "StockId", "WalletTxId", 1)
 
