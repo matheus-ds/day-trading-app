@@ -251,8 +251,6 @@ func CancelOrder(order models.StockTransaction) (wasCancelled bool) {
 
 // cancelBuyOrder() and cancelSellOrder() are mirrors of each other, with "buy" and "sell" swapped.
 
-func (book orderbook) cancelBuyOrder(tx models.StockMatch) (wasFound bool) {
-	victimTx, wasFound := book.buys.Get(tx)
 func (book orderbook) cancelBuyOrder(order models.StockTransaction) (wasFound bool) {
 	victimTx, wasFound := book.buys.Get(order)
 	if wasFound {
