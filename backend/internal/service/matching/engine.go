@@ -72,14 +72,15 @@ func getOrderbook(tx models.StockTransaction) *orderbook {
 func createChildTx(parentTx models.StockMatch, otherTx models.StockMatch, quantityTraded int) models.StockMatch {
 	var childTx = parentTx
 	childTx.Order.ParentStockTxID = &parentTx.Order.StockTxID
-	childTx.Order.StockTxID = strings.ToLower(childTx.Order.StockID) + "StockId" + uuid.New().String()
-	childTx.PriceTx = otherTx.Order.StockPrice // TODO: SPECS DIDN'T SPECIFY WHAT TO DO IN CASE OF PRICE DIFFERENCE
+	childTx.Order.StockTxID = strings.ToLower(childTx.Order.StockID) + "StockTxId" + uuid.New().String() // todo fix?
+	childTx.PriceTx = otherTx.Order.StockPrice                                                           // TODO: SPECS DIDN'T SPECIFY WHAT TO DO IN CASE OF PRICE DIFFERENCE
 	childTx.QuantityTx = quantityTraded
 	childTx.Order.TimeStamp = time.Now().Unix() // todo: Should we be changing the timestamp, or keep the parent's?
 	childTx.Order.OrderStatus = "COMPLETED"
 	return childTx
 }
 
+// Match inserts a transaction into the matching engine, to be matched with complementary transaction(s) in its order book.
 func Match(order models.StockTransaction) {
 	var book = getOrderbook(order)
 
@@ -91,8 +92,10 @@ func Match(order models.StockTransaction) {
 		book.matchSell(tx)
 	}
 
-	// todo ExecuteOrders(stockTxCommitQueue)
+	// ExecuteOrders(stockTxCommitQueue) todo: Not sure how to best pass queue and execution flow
 }
+
+// matchBuy() and matchSell() are basically mirrors of each other, with "buy" and "sell" swapped.
 
 func (book orderbook) matchBuy(buyTx models.StockMatch) {
 	if book.sells.Len() == 0 {
@@ -228,47 +231,43 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 	}
 }
 
-func CancelOrder(order models.StockTransaction) {
-	if order.OrderType != "LIMIT" {
-		// todo: report failure/error message to user. Actually, this should probably be handled earlier than the matcher.
-	}
-
-	var book = bookMap.book[order.StockID]
-	if book == nil {
-		// todo: report failure/error message to user
-	}
-
-	var tx = models.StockMatch{Order: order, QuantityTx: 0, PriceTx: 0}
-
-	if tx.Order.IsBuy {
-		book.cancelBuyOrder(tx)
+// CancelOrder halts further activity for a limit transaction with the given stockTxID.
+// If found, the matching transaction is enqueued. Basically a deliberate premature expiration.
+func CancelOrder(tx models.StockMatch) (wasCancelled bool) {
+	var book = bookMap.book[tx.Order.StockID]
+	if book != nil { // todo rewrite normally
+		if tx.Order.IsBuy {
+			wasCancelled = book.cancelBuyOrder(tx)
+		} else {
+			wasCancelled = book.cancelSellOrder(tx)
+		}
 	} else {
-		book.cancelSellOrder(tx)
+		stockTxCommitQueue = append(stockTxCommitQueue, tx)
 	}
 
-	// todo ExecuteOrders(stockTxCommitQueue)
+	// ExecuteOrders(stockTxCommitQueue) todo: Not sure how to best pass queue and execution flow
+
+	return wasCancelled
 }
 
-func (book orderbook) cancelBuyOrder(tx models.StockMatch) {
-	var victimTx, wasFound = book.buys.Get(tx)
+// cancelBuyOrder() and cancelSellOrder() are mirrors of each other, with "buy" and "sell" swapped.
+
+func (book orderbook) cancelBuyOrder(tx models.StockMatch) (wasFound bool) {
+	victimTx, wasFound := book.buys.Get(tx)
 	if wasFound {
 		book.buys.Delete(tx)
 		victimTx := victimTx.(models.StockMatch)
-		//if !(victimTx.OrderStatus == "PARTIAL_FULFILLED") {} // todo: do we log cancelled orders that did nothing?
 		stockTxCommitQueue = append(stockTxCommitQueue, victimTx)
-	} else {
-		// todo: report failure/error message to user
 	}
+	return wasFound
 }
 
-func (book orderbook) cancelSellOrder(tx models.StockMatch) {
-	var victimTx, wasFound = book.sells.Get(tx)
+func (book orderbook) cancelSellOrder(tx models.StockMatch) (wasFound bool) {
+	victimTx, wasFound := book.sells.Get(tx)
 	if wasFound {
 		book.sells.Delete(tx)
 		victimTx := victimTx.(models.StockMatch)
-		//if !(victimTx.OrderStatus == "PARTIAL_FULFILLED") {} // todo: do we log cancelled orders that did nothing?
 		stockTxCommitQueue = append(stockTxCommitQueue, victimTx)
-	} else {
-		// todo: report failure/error message to user
 	}
+	return wasFound
 }
