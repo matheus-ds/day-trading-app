@@ -30,3 +30,9 @@ type StockPrice struct {
 	StockName    string `json:"stockName"    bson:"stock_name"`
 	CurrentPrice int    `json:"currentPrice" bson:"current_price"`
 }
+
+type StockMatch struct {
+	Order      StockTransaction `json:"order" bson:"order"`
+	QuantityTx int              `json:"quantityTx" bson:"quantity_tx"`
+	PriceTx    int              `json:"priceTx" bson:"price_tx"`
+}
