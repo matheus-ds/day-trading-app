@@ -71,7 +71,7 @@ func createChildTx(parentTx models.StockMatch, otherTx models.StockMatch, quanti
 	var childTx = parentTx
 	childTx.Order.ParentStockTxID = &parentTx.Order.StockTxID
 	// childTx.StockTxID = TODO child StockTxID scheme? Should this be decided by Order Execution?
-	childTx.PriceTx = otherTx.Order.StockPrice
+	childTx.PriceTx = otherTx.Order.StockPrice // TODO: SPECS DIDN'T SPECIFY WHAT TO DO IN CASE OF PRICE DIFFERENCE
 	childTx.QuantityTx = quantityTraded
 	// childTx.TimeStamp = TODO do we change timestamp?
 
@@ -121,7 +121,7 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 
 				if buyQuantityRemaining >= sellQuantityRemaining {
 					if buyTx.Order.Quantity == sellQuantityRemaining { // perfect match, no children
-						buyTx.PriceTx = lowestSellTx.Order.StockPrice // TODO: Assumes buyer gets seller's price; SPECS DIDN'T SPECIFY ABOUT PRICE DIFFERENCE
+						buyTx.PriceTx = lowestSellTx.Order.StockPrice // TODO: SPECS DIDN'T SPECIFY WHAT TO DO IN CASE OF PRICE DIFFERENCE
 					} else {
 						var buyChildTx = createChildTx(buyTx, lowestSellTx, sellQuantityRemaining)
 						stockTxCommitQueue = append(stockTxCommitQueue, buyChildTx)
@@ -130,7 +130,7 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 
 					book.sells.Delete(lowestSellTx)
 					lowestSellTx.Order.OrderStatus = "COMPLETED"
-					lowestSellTx.PriceTx = lowestSellTx.Order.StockPrice // TODO: Assumes buyer gets seller's price; SPECS DIDN'T SPECIFY ABOUT PRICE DIFFERENCE
+					lowestSellTx.PriceTx = lowestSellTx.Order.StockPrice // TODO: SPECS DIDN'T SPECIFY WHAT TO DO IN CASE OF PRICE DIFFERENCE
 					lowestSellTx.QuantityTx = lowestSellTx.Order.Quantity - sellQuantityRemaining
 					stockTxCommitQueue = append(stockTxCommitQueue, lowestSellTx)
 				} else { // buyQuantityRemaining < sellQuantityRemaining
@@ -163,8 +163,74 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 	}
 }
 
-func (book orderbook) matchSell(tx models.StockMatch) {
-	//todo: mirror matchBuy
+func (book orderbook) matchSell(sellTx models.StockMatch) {
+	if book.buys.Len() == 0 {
+		if sellTx.Order.OrderType == "LIMIT" {
+			book.sells.Set(sellTx.Order, sellTx)
+		} else { // "MARKET"
+			stockTxCommitQueue = append(stockTxCommitQueue, sellTx)
+		}
+
+	} else {
+		var buysHasNext = true
+		var buyIter = book.buys.Iterator()
+		var sellQuantityRemaining = sellTx.Order.Quantity
+		var sellChildTxCount = 0 // todo: do we need this for children's StockTxID ? (If so, it needs to be remembered in orderbook entries as well)
+
+		for sellQuantityRemaining > 0 && buysHasNext {
+			highestBuyTx := buyIter.Value().(models.StockMatch)
+			buyQuantityRemaining := highestBuyTx.Order.Quantity - highestBuyTx.QuantityTx
+
+			if isExpired(highestBuyTx) {
+				book.buys.Delete(highestBuyTx)
+				stockTxCommitQueue = append(stockTxCommitQueue, highestBuyTx)
+			} else {
+				if (sellTx.Order.OrderType == "LIMIT") && (sellTx.Order.StockPrice < highestBuyTx.Order.StockPrice) {
+					break
+				}
+
+				if sellQuantityRemaining >= buyQuantityRemaining {
+					if sellTx.Order.Quantity == buyQuantityRemaining { // perfect match, no children
+						sellTx.PriceTx = highestBuyTx.Order.StockPrice // TODO: SPECS DIDN'T SPECIFY WHAT TO DO IN CASE OF PRICE DIFFERENCE
+					} else {
+						var sellChildTx = createChildTx(sellTx, highestBuyTx, buyQuantityRemaining)
+						stockTxCommitQueue = append(stockTxCommitQueue, sellChildTx)
+						sellChildTxCount++
+					}
+
+					book.buys.Delete(highestBuyTx)
+					highestBuyTx.Order.OrderStatus = "COMPLETED"
+					highestBuyTx.PriceTx = highestBuyTx.Order.StockPrice // TODO: SPECS DIDN'T SPECIFY WHAT TO DO IN CASE OF PRICE DIFFERENCE
+					highestBuyTx.QuantityTx = highestBuyTx.Order.Quantity - buyQuantityRemaining
+					stockTxCommitQueue = append(stockTxCommitQueue, highestBuyTx)
+				} else { // sellQuantityRemaining < buyQuantityRemaining
+					var sellChildTx = createChildTx(sellTx, highestBuyTx, sellQuantityRemaining)
+					stockTxCommitQueue = append(stockTxCommitQueue, sellChildTx)
+					sellChildTxCount++
+
+					highestBuyTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
+					var buyChildTx = createChildTx(highestBuyTx, sellTx, sellQuantityRemaining)
+					stockTxCommitQueue = append(stockTxCommitQueue, buyChildTx)
+				}
+			}
+			sellQuantityRemaining -= buyQuantityRemaining
+			buysHasNext = buyIter.Next()
+		}
+
+		sellTx.QuantityTx = sellTx.Order.Quantity - sellQuantityRemaining
+
+		if sellQuantityRemaining > 0 {
+			sellTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
+		} else { // = 0
+			sellTx.Order.OrderStatus = "COMPLETED"
+		}
+
+		if sellTx.Order.OrderType == "LIMIT" {
+			book.sells.Set(sellTx.Order, sellTx)
+		}
+
+		stockTxCommitQueue = append(stockTxCommitQueue, sellTx)
+	}
 }
 
 func CancelOrder(order models.StockTransaction) {
