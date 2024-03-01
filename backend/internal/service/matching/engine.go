@@ -115,7 +115,7 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 			sellQuantityRemaining := lowestSellTx.Order.Quantity - lowestSellTx.QuantityTx
 
 			if isExpired(lowestSellTx) {
-				book.sells.Delete(lowestSellTx)
+				book.sells.Delete(lowestSellTx.Order)
 				stockTxCommitQueue = append(stockTxCommitQueue, lowestSellTx)
 			} else {
 				if (buyTx.Order.OrderType == "LIMIT") && (buyTx.Order.StockPrice < lowestSellTx.Order.StockPrice) {
@@ -130,7 +130,7 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 						stockTxCommitQueue = append(stockTxCommitQueue, buyChildTx)
 					}
 
-					book.sells.Delete(lowestSellTx)
+					book.sells.Delete(lowestSellTx.Order)
 					lowestSellTx.Order.OrderStatus = "COMPLETED"
 					lowestSellTx.PriceTx = lowestSellTx.Order.StockPrice // TODO: SPECS DIDN'T SPECIFY WHAT TO DO IN CASE OF PRICE DIFFERENCE
 					lowestSellTx.QuantityTx = lowestSellTx.Order.Quantity - sellQuantityRemaining
@@ -182,7 +182,7 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 			buyQuantityRemaining := highestBuyTx.Order.Quantity - highestBuyTx.QuantityTx
 
 			if isExpired(highestBuyTx) {
-				book.buys.Delete(highestBuyTx)
+				book.buys.Delete(highestBuyTx.Order)
 				stockTxCommitQueue = append(stockTxCommitQueue, highestBuyTx)
 			} else {
 				if (sellTx.Order.OrderType == "LIMIT") && (sellTx.Order.StockPrice < highestBuyTx.Order.StockPrice) {
@@ -197,7 +197,7 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 						stockTxCommitQueue = append(stockTxCommitQueue, sellChildTx)
 					}
 
-					book.buys.Delete(highestBuyTx)
+					book.buys.Delete(highestBuyTx.Order)
 					highestBuyTx.Order.OrderStatus = "COMPLETED"
 					highestBuyTx.PriceTx = highestBuyTx.Order.StockPrice // TODO: SPECS DIDN'T SPECIFY WHAT TO DO IN CASE OF PRICE DIFFERENCE
 					highestBuyTx.QuantityTx = highestBuyTx.Order.Quantity - buyQuantityRemaining
@@ -233,16 +233,15 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 
 // CancelOrder halts further activity for a limit transaction with the given stockTxID.
 // If found, the matching transaction is enqueued. Basically a deliberate premature expiration.
-func CancelOrder(tx models.StockMatch) (wasCancelled bool) {
-	var book = bookMap.book[tx.Order.StockID]
+func CancelOrder(order models.StockTransaction) (wasCancelled bool) {
+
+	var book = bookMap.book[order.StockID]
 	if book != nil {
-		if tx.Order.IsBuy {
-			wasCancelled = book.cancelBuyOrder(tx)
+		if order.IsBuy {
+			wasCancelled = book.cancelBuyOrder(order)
 		} else {
-			wasCancelled = book.cancelSellOrder(tx)
+			wasCancelled = book.cancelSellOrder(order)
 		}
-	} else {
-		stockTxCommitQueue = append(stockTxCommitQueue, tx)
 	}
 
 	// ExecuteOrders(stockTxCommitQueue) todo: Not sure how to best pass queue and execution flow
@@ -254,18 +253,20 @@ func CancelOrder(tx models.StockMatch) (wasCancelled bool) {
 
 func (book orderbook) cancelBuyOrder(tx models.StockMatch) (wasFound bool) {
 	victimTx, wasFound := book.buys.Get(tx)
+func (book orderbook) cancelBuyOrder(order models.StockTransaction) (wasFound bool) {
+	victimTx, wasFound := book.buys.Get(order)
 	if wasFound {
-		book.buys.Delete(tx)
+		book.buys.Delete(order)
 		victimTx := victimTx.(models.StockMatch)
 		stockTxCommitQueue = append(stockTxCommitQueue, victimTx)
 	}
 	return wasFound
 }
 
-func (book orderbook) cancelSellOrder(tx models.StockMatch) (wasFound bool) {
-	victimTx, wasFound := book.sells.Get(tx)
+func (book orderbook) cancelSellOrder(order models.StockTransaction) (wasFound bool) {
+	victimTx, wasFound := book.sells.Get(order)
 	if wasFound {
-		book.sells.Delete(tx)
+		book.sells.Delete(order)
 		victimTx := victimTx.(models.StockMatch)
 		stockTxCommitQueue = append(stockTxCommitQueue, victimTx)
 	}
