@@ -6,6 +6,8 @@ package matching
 
 import (
 	"day-trading-app/backend/internal/service/models"
+	"github.com/google/uuid"
+	"strings"
 	"time"
 
 	"github.com/ryszard/goskiplist/skiplist"
@@ -66,15 +68,14 @@ func getOrderbook(tx models.StockTransaction) *orderbook {
 	return bookMap.book[tx.StockID]
 }
 
-// Create child transaction based on parentTx, ordering full quantity of otherTx.
+// Create child transaction based on parentTx, ordering some specified quantity of otherTx.
 func createChildTx(parentTx models.StockMatch, otherTx models.StockMatch, quantityTraded int) models.StockMatch {
 	var childTx = parentTx
 	childTx.Order.ParentStockTxID = &parentTx.Order.StockTxID
-	// childTx.StockTxID = TODO child StockTxID scheme? Should this be decided by Order Execution?
+	childTx.Order.StockTxID = strings.ToLower(childTx.Order.StockID) + "StockId" + uuid.New().String()
 	childTx.PriceTx = otherTx.Order.StockPrice // TODO: SPECS DIDN'T SPECIFY WHAT TO DO IN CASE OF PRICE DIFFERENCE
 	childTx.QuantityTx = quantityTraded
-	// childTx.TimeStamp = TODO do we change timestamp?
-
+	childTx.Order.TimeStamp = time.Now().Unix() // todo: Should we be changing the timestamp, or keep the parent's?
 	childTx.Order.OrderStatus = "COMPLETED"
 	return childTx
 }
@@ -105,7 +106,6 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 		var sellsHasNext = true
 		var sellIter = book.sells.Iterator()
 		var buyQuantityRemaining = buyTx.Order.Quantity
-		var buyChildTxCount = 0 // todo: do we need this for children's StockTxID ? (If so, it needs to be remembered in orderbook entries as well)
 
 		for buyQuantityRemaining > 0 && sellsHasNext {
 			lowestSellTx := sellIter.Value().(models.StockMatch)
@@ -125,7 +125,6 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 					} else {
 						var buyChildTx = createChildTx(buyTx, lowestSellTx, sellQuantityRemaining)
 						stockTxCommitQueue = append(stockTxCommitQueue, buyChildTx)
-						buyChildTxCount++
 					}
 
 					book.sells.Delete(lowestSellTx)
@@ -136,7 +135,6 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 				} else { // buyQuantityRemaining < sellQuantityRemaining
 					var buyChildTx = createChildTx(buyTx, lowestSellTx, buyQuantityRemaining)
 					stockTxCommitQueue = append(stockTxCommitQueue, buyChildTx)
-					buyChildTxCount++
 
 					lowestSellTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
 					var sellChildTx = createChildTx(lowestSellTx, buyTx, buyQuantityRemaining)
@@ -175,7 +173,6 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 		var buysHasNext = true
 		var buyIter = book.buys.Iterator()
 		var sellQuantityRemaining = sellTx.Order.Quantity
-		var sellChildTxCount = 0 // todo: do we need this for children's StockTxID ? (If so, it needs to be remembered in orderbook entries as well)
 
 		for sellQuantityRemaining > 0 && buysHasNext {
 			highestBuyTx := buyIter.Value().(models.StockMatch)
@@ -195,7 +192,6 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 					} else {
 						var sellChildTx = createChildTx(sellTx, highestBuyTx, buyQuantityRemaining)
 						stockTxCommitQueue = append(stockTxCommitQueue, sellChildTx)
-						sellChildTxCount++
 					}
 
 					book.buys.Delete(highestBuyTx)
@@ -206,7 +202,6 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 				} else { // sellQuantityRemaining < buyQuantityRemaining
 					var sellChildTx = createChildTx(sellTx, highestBuyTx, sellQuantityRemaining)
 					stockTxCommitQueue = append(stockTxCommitQueue, sellChildTx)
-					sellChildTxCount++
 
 					highestBuyTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
 					var buyChildTx = createChildTx(highestBuyTx, sellTx, sellQuantityRemaining)
