@@ -235,7 +235,7 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 // If found, the matching transaction is enqueued. Basically a deliberate premature expiration.
 func CancelOrder(tx models.StockMatch) (wasCancelled bool) {
 	var book = bookMap.book[tx.Order.StockID]
-	if book != nil { // todo rewrite normally
+	if book != nil {
 		if tx.Order.IsBuy {
 			wasCancelled = book.cancelBuyOrder(tx)
 		} else {
