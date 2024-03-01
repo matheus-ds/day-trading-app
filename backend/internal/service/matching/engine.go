@@ -69,13 +69,13 @@ func getOrderbook(tx models.StockTransaction) *orderbook {
 }
 
 // Create child transaction based on parentTx, ordering some specified quantity of otherTx.
-func createChildTx(parentTx models.StockMatch, otherTx models.StockMatch, quantityTraded int) models.StockMatch {
+func createChildTx(parentTx models.StockMatch, otherTx models.StockMatch, quantityTraded int, priceTraded int) models.StockMatch {
 	var childTx = parentTx
 	childTx.Order.ParentStockTxID = &parentTx.Order.StockTxID
 	childTx.Order.StockTxID = strings.ToLower(childTx.Order.StockID) + "StockTxId" + uuid.New().String() // todo fix?
-	childTx.PriceTx = otherTx.Order.StockPrice                                                           // TODO: SPECS DIDN'T SPECIFY WHAT TO DO IN CASE OF PRICE DIFFERENCE
+	childTx.PriceTx = priceTraded
 	childTx.QuantityTx = quantityTraded
-	childTx.Order.TimeStamp = time.Now().Unix() // todo: Should we be changing the timestamp, or keep the parent's?
+	childTx.Order.TimeStamp = time.Now().Unix()
 	childTx.Order.OrderStatus = "COMPLETED"
 	return childTx
 }
@@ -96,6 +96,8 @@ func Match(order models.StockTransaction) {
 }
 
 // matchBuy() and matchSell() are basically mirrors of each other, with "buy" and "sell" swapped.
+// todo Specification unclear as to what price that two matched price limit-orders with different prices should trade at.
+// todo   So for now we're taking the oldest limit-order's price.
 
 func (book orderbook) matchBuy(buyTx models.StockMatch) {
 	if book.sells.Len() == 0 {
@@ -124,23 +126,23 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 
 				if buyQuantityRemaining >= sellQuantityRemaining {
 					if buyTx.Order.Quantity == sellQuantityRemaining { // perfect match, no children
-						buyTx.PriceTx = lowestSellTx.Order.StockPrice // TODO: SPECS DIDN'T SPECIFY WHAT TO DO IN CASE OF PRICE DIFFERENCE
+						buyTx.PriceTx = lowestSellTx.Order.StockPrice
 					} else {
-						var buyChildTx = createChildTx(buyTx, lowestSellTx, sellQuantityRemaining)
+						var buyChildTx = createChildTx(buyTx, lowestSellTx, sellQuantityRemaining, lowestSellTx.Order.StockPrice)
 						stockTxCommitQueue = append(stockTxCommitQueue, buyChildTx)
 					}
 
 					book.sells.Delete(lowestSellTx.Order)
 					lowestSellTx.Order.OrderStatus = "COMPLETED"
-					lowestSellTx.PriceTx = lowestSellTx.Order.StockPrice // TODO: SPECS DIDN'T SPECIFY WHAT TO DO IN CASE OF PRICE DIFFERENCE
+					lowestSellTx.PriceTx = lowestSellTx.Order.StockPrice
 					lowestSellTx.QuantityTx = lowestSellTx.Order.Quantity - sellQuantityRemaining
 					stockTxCommitQueue = append(stockTxCommitQueue, lowestSellTx)
 				} else { // buyQuantityRemaining < sellQuantityRemaining
-					var buyChildTx = createChildTx(buyTx, lowestSellTx, buyQuantityRemaining)
+					var buyChildTx = createChildTx(buyTx, lowestSellTx, buyQuantityRemaining, lowestSellTx.Order.StockPrice)
 					stockTxCommitQueue = append(stockTxCommitQueue, buyChildTx)
 
 					lowestSellTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
-					var sellChildTx = createChildTx(lowestSellTx, buyTx, buyQuantityRemaining)
+					var sellChildTx = createChildTx(lowestSellTx, buyTx, buyQuantityRemaining, lowestSellTx.Order.StockPrice)
 					stockTxCommitQueue = append(stockTxCommitQueue, sellChildTx)
 				}
 			}
@@ -191,23 +193,23 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 
 				if sellQuantityRemaining >= buyQuantityRemaining {
 					if sellTx.Order.Quantity == buyQuantityRemaining { // perfect match, no children
-						sellTx.PriceTx = highestBuyTx.Order.StockPrice // TODO: SPECS DIDN'T SPECIFY WHAT TO DO IN CASE OF PRICE DIFFERENCE
+						sellTx.PriceTx = highestBuyTx.Order.StockPrice
 					} else {
-						var sellChildTx = createChildTx(sellTx, highestBuyTx, buyQuantityRemaining)
+						var sellChildTx = createChildTx(sellTx, highestBuyTx, buyQuantityRemaining, highestBuyTx.Order.StockPrice)
 						stockTxCommitQueue = append(stockTxCommitQueue, sellChildTx)
 					}
 
 					book.buys.Delete(highestBuyTx.Order)
 					highestBuyTx.Order.OrderStatus = "COMPLETED"
-					highestBuyTx.PriceTx = highestBuyTx.Order.StockPrice // TODO: SPECS DIDN'T SPECIFY WHAT TO DO IN CASE OF PRICE DIFFERENCE
+					highestBuyTx.PriceTx = highestBuyTx.Order.StockPrice
 					highestBuyTx.QuantityTx = highestBuyTx.Order.Quantity - buyQuantityRemaining
 					stockTxCommitQueue = append(stockTxCommitQueue, highestBuyTx)
 				} else { // sellQuantityRemaining < buyQuantityRemaining
-					var sellChildTx = createChildTx(sellTx, highestBuyTx, sellQuantityRemaining)
+					var sellChildTx = createChildTx(sellTx, highestBuyTx, sellQuantityRemaining, highestBuyTx.Order.StockPrice)
 					stockTxCommitQueue = append(stockTxCommitQueue, sellChildTx)
 
 					highestBuyTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
-					var buyChildTx = createChildTx(highestBuyTx, sellTx, sellQuantityRemaining)
+					var buyChildTx = createChildTx(highestBuyTx, sellTx, sellQuantityRemaining, highestBuyTx.Order.StockPrice)
 					stockTxCommitQueue = append(stockTxCommitQueue, buyChildTx)
 				}
 			}
@@ -234,7 +236,6 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 // CancelOrder halts further activity for a limit transaction with the given stockTxID.
 // If found, the matching transaction is enqueued. Basically a deliberate premature expiration.
 func CancelOrder(order models.StockTransaction) (wasCancelled bool) {
-
 	var book = bookMap.book[order.StockID]
 	if book != nil {
 		if order.IsBuy {
