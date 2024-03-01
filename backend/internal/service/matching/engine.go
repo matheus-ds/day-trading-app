@@ -22,7 +22,7 @@ type orderbooks struct {
 }
 
 var bookMap *orderbooks = new(orderbooks)
-var stockTxCommitQueue []models.StockTransaction
+var stockTxCommitQueue []models.StockMatch
 
 // Define orderings for orderbooks. Sort first by price, then if equal price, by time.
 
@@ -53,12 +53,8 @@ func sellIsLowerPriorityThan(l, r interface{}) bool {
 }
 
 // Returns true if transaction's timestamp is over 15 minutes old.
-func isExpired(tx models.StockTransaction) bool {
-	if tx.OrderType == "LIMIT" { // todo: this check is probably unnecessary
-		return time.Now().Unix()+(15*60) >= tx.TimeStamp
-	} else {
-		return false
-	}
+func isExpired(tx models.StockMatch) bool {
+	return time.Now().Unix()+(15*60) >= tx.Order.TimeStamp
 }
 
 func getOrderbook(tx models.StockTransaction) *orderbook {
@@ -71,22 +67,24 @@ func getOrderbook(tx models.StockTransaction) *orderbook {
 }
 
 // Create child transaction based on parentTx, ordering full quantity of otherTx.
-func createChildTx(parentTx models.StockTransaction, otherTx models.StockTransaction, quantityTraded int) models.StockTransaction {
+func createChildTx(parentTx models.StockMatch, otherTx models.StockMatch, quantityTraded int) models.StockMatch {
 	var childTx = parentTx
-	childTx.ParentStockTxID = &parentTx.StockTxID
+	childTx.Order.ParentStockTxID = &parentTx.Order.StockTxID
 	// childTx.StockTxID = TODO child StockTxID scheme? Should this be decided by Order Execution?
-	childTx.StockPrice = otherTx.StockPrice
-	childTx.Quantity = quantityTraded
+	childTx.PriceTx = otherTx.Order.StockPrice
+	childTx.QuantityTx = quantityTraded
 	// childTx.TimeStamp = TODO do we change timestamp?
 
-	childTx.OrderStatus = "COMPLETED"
+	childTx.Order.OrderStatus = "COMPLETED"
 	return childTx
 }
 
-func Match(tx models.StockTransaction) {
-	var book = getOrderbook(tx)
+func Match(order models.StockTransaction) {
+	var book = getOrderbook(order)
 
-	if tx.IsBuy {
+	var tx = models.StockMatch{Order: order, QuantityTx: 0, PriceTx: 0}
+
+	if order.IsBuy {
 		book.matchBuy(tx)
 	} else {
 		book.matchSell(tx)
@@ -95,79 +93,93 @@ func Match(tx models.StockTransaction) {
 	// todo ExecuteOrders(stockTxCommitQueue)
 }
 
-func (book orderbook) matchBuy(buyTx models.StockTransaction) {
+func (book orderbook) matchBuy(buyTx models.StockMatch) {
 	if book.sells.Len() == 0 {
-		if buyTx.OrderType == "LIMIT" {
-			book.buys.Set(buyTx, buyTx)
+		if buyTx.Order.OrderType == "LIMIT" {
+			book.buys.Set(buyTx.Order, buyTx)
 		} else { // "MARKET"
-			buyTx.OrderStatus = "UNFULFILLED" // todo: should this be handled differently?
 			stockTxCommitQueue = append(stockTxCommitQueue, buyTx)
 		}
 
 	} else {
 		var sellsHasNext = true
 		var sellIter = book.sells.Iterator()
-		var buyQuantityRemaining = buyTx.Quantity
-		var childTxCount = 0 // todo: do we need this?
+		var buyQuantityRemaining = buyTx.Order.Quantity
+		var buyChildTxCount = 0 // todo: do we need this for children's StockTxID ? (If so, it needs to be remembered in orderbook entries as well)
 
-		for buyQuantityRemaining > 0 && sellsHasNext { // todo &&
-			lowestSellTx := sellIter.Value().(models.StockTransaction)
+		for buyQuantityRemaining > 0 && sellsHasNext {
+			lowestSellTx := sellIter.Value().(models.StockMatch)
+			sellQuantityRemaining := lowestSellTx.Order.Quantity - lowestSellTx.QuantityTx
+
 			if isExpired(lowestSellTx) {
 				book.sells.Delete(lowestSellTx)
-				lowestSellTx.OrderStatus = "EXPIRED" // todo
 				stockTxCommitQueue = append(stockTxCommitQueue, lowestSellTx)
 			} else {
-				if buyQuantityRemaining >= lowestSellTx.Quantity {
-					if buyTx.Quantity == lowestSellTx.Quantity { // perfect match, no children
-						buyTx.OrderStatus = "COMPLETED"
+				if (buyTx.Order.OrderType == "LIMIT") && (buyTx.Order.StockPrice < lowestSellTx.Order.StockPrice) {
+					break
+				}
+
+				if buyQuantityRemaining >= sellQuantityRemaining {
+					if buyTx.Order.Quantity == sellQuantityRemaining { // perfect match, no children
+						buyTx.PriceTx = lowestSellTx.Order.StockPrice // TODO: Assumes buyer gets seller's price; SPECS DIDN'T SPECIFY ABOUT PRICE DIFFERENCE
 					} else {
-						var childTx = createChildTx(buyTx, lowestSellTx, lowestSellTx.Quantity)
-						stockTxCommitQueue = append(stockTxCommitQueue, childTx)
-						childTxCount++
+						var buyChildTx = createChildTx(buyTx, lowestSellTx, sellQuantityRemaining)
+						stockTxCommitQueue = append(stockTxCommitQueue, buyChildTx)
+						buyChildTxCount++
 					}
 
 					book.sells.Delete(lowestSellTx)
-					lowestSellTx.OrderStatus = "COMPLETED"
+					lowestSellTx.Order.OrderStatus = "COMPLETED"
+					lowestSellTx.PriceTx = lowestSellTx.Order.StockPrice // TODO: Assumes buyer gets seller's price; SPECS DIDN'T SPECIFY ABOUT PRICE DIFFERENCE
+					lowestSellTx.QuantityTx = lowestSellTx.Order.Quantity - sellQuantityRemaining
 					stockTxCommitQueue = append(stockTxCommitQueue, lowestSellTx)
-				} else { // buyQuantityRemaining < lowestSellTx.Quantity
-					var childTx = createChildTx(buyTx, lowestSellTx, buyQuantityRemaining)
-					stockTxCommitQueue = append(stockTxCommitQueue, childTx)
-					childTxCount++
+				} else { // buyQuantityRemaining < sellQuantityRemaining
+					var buyChildTx = createChildTx(buyTx, lowestSellTx, buyQuantityRemaining)
+					stockTxCommitQueue = append(stockTxCommitQueue, buyChildTx)
+					buyChildTxCount++
 
-					// todo handle sell LIMIT if IN_PROGRESS vs PARTIALLY_FULFILLED
-
+					lowestSellTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
+					var sellChildTx = createChildTx(lowestSellTx, buyTx, buyQuantityRemaining)
+					stockTxCommitQueue = append(stockTxCommitQueue, sellChildTx)
 				}
 			}
-			buyQuantityRemaining -= lowestSellTx.Quantity
+			buyQuantityRemaining -= sellQuantityRemaining
 			sellsHasNext = sellIter.Next()
 		}
 
-		if (buyQuantityRemaining > 0) && (buyTx.OrderType == "MARKET") {
-			buyTx.OrderStatus = "PARTIALLY_FULFILLED" // todo: anything else?
+		buyTx.QuantityTx = buyTx.Order.Quantity - buyQuantityRemaining
+
+		if buyQuantityRemaining > 0 {
+			buyTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
+		} else { // = 0
+			buyTx.Order.OrderStatus = "COMPLETED"
 		}
+
+		if buyTx.Order.OrderType == "LIMIT" {
+			book.buys.Set(buyTx.Order, buyTx)
+		}
+
 		stockTxCommitQueue = append(stockTxCommitQueue, buyTx)
-
-		// todo else if LIMIT order, store in engine (with info about amount remaining to fulfill,
-		//      or change Quantity field and let the Order Execution contrast with the already stored IN_PROGRESS tx in database)?
 	}
-
 }
 
-func (book orderbook) matchSell(tx models.StockTransaction) {
+func (book orderbook) matchSell(tx models.StockMatch) {
 	//todo: mirror matchBuy
 }
 
-func CancelOrder(tx models.StockTransaction) {
-	if tx.OrderType != "LIMIT" {
+func CancelOrder(order models.StockTransaction) {
+	if order.OrderType != "LIMIT" {
 		// todo: report failure/error message to user. Actually, this should probably be handled earlier than the matcher.
 	}
 
-	var book = bookMap.book[tx.StockID]
+	var book = bookMap.book[order.StockID]
 	if book == nil {
 		// todo: report failure/error message to user
 	}
 
-	if tx.IsBuy {
+	var tx = models.StockMatch{Order: order, QuantityTx: 0, PriceTx: 0}
+
+	if tx.Order.IsBuy {
 		book.cancelBuyOrder(tx)
 	} else {
 		book.cancelSellOrder(tx)
@@ -176,11 +188,11 @@ func CancelOrder(tx models.StockTransaction) {
 	// todo ExecuteOrders(stockTxCommitQueue)
 }
 
-func (book orderbook) cancelBuyOrder(tx models.StockTransaction) {
+func (book orderbook) cancelBuyOrder(tx models.StockMatch) {
 	var victimTx, wasFound = book.buys.Get(tx)
 	if wasFound {
 		book.buys.Delete(tx)
-		victimTx := victimTx.(models.StockTransaction)
+		victimTx := victimTx.(models.StockMatch)
 		//if !(victimTx.OrderStatus == "PARTIAL_FULFILLED") {} // todo: do we log cancelled orders that did nothing?
 		stockTxCommitQueue = append(stockTxCommitQueue, victimTx)
 	} else {
@@ -188,11 +200,11 @@ func (book orderbook) cancelBuyOrder(tx models.StockTransaction) {
 	}
 }
 
-func (book orderbook) cancelSellOrder(tx models.StockTransaction) {
+func (book orderbook) cancelSellOrder(tx models.StockMatch) {
 	var victimTx, wasFound = book.sells.Get(tx)
 	if wasFound {
 		book.sells.Delete(tx)
-		victimTx := victimTx.(models.StockTransaction)
+		victimTx := victimTx.(models.StockMatch)
 		//if !(victimTx.OrderStatus == "PARTIAL_FULFILLED") {} // todo: do we log cancelled orders that did nothing?
 		stockTxCommitQueue = append(stockTxCommitQueue, victimTx)
 	} else {
