@@ -135,9 +135,11 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 					}
 
 					book.sells.Delete(lowestSellTx.Order)
+					if lowestSellTx.Order.OrderStatus == "IN_PROGRESS" { // not parent
+						lowestSellTx.PriceTx = lowestSellTx.Order.StockPrice
+						lowestSellTx.QuantityTx = lowestSellTx.Order.Quantity - sellQuantityRemaining
+					}
 					lowestSellTx.Order.OrderStatus = "COMPLETED"
-					lowestSellTx.PriceTx = lowestSellTx.Order.StockPrice
-					lowestSellTx.QuantityTx = lowestSellTx.Order.Quantity - sellQuantityRemaining
 					stockTxCommitQueue = append(stockTxCommitQueue, lowestSellTx)
 				} else { // buyQuantityRemaining < sellQuantityRemaining
 					var buyChildTx = createChildTx(buyTx, buyQuantityRemaining, lowestSellTx.Order.StockPrice)
@@ -152,11 +154,10 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 			sellsHasNext = sellIter.Next()
 		}
 
-		buyTx.QuantityTx = buyTx.Order.Quantity - buyQuantityRemaining
-
 		if buyQuantityRemaining > 0 {
 			buyTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
 		} else { // = 0
+			buyTx.QuantityTx = buyTx.Order.Quantity - buyQuantityRemaining
 			buyTx.Order.OrderStatus = "COMPLETED"
 		}
 
@@ -202,9 +203,11 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 					}
 
 					book.buys.Delete(highestBuyTx.Order)
+					if highestBuyTx.Order.OrderStatus == "IN_PROGRESS" { // not parent
+						highestBuyTx.PriceTx = highestBuyTx.Order.StockPrice
+						highestBuyTx.QuantityTx = highestBuyTx.Order.Quantity - buyQuantityRemaining
+					}
 					highestBuyTx.Order.OrderStatus = "COMPLETED"
-					highestBuyTx.PriceTx = highestBuyTx.Order.StockPrice
-					highestBuyTx.QuantityTx = highestBuyTx.Order.Quantity - buyQuantityRemaining
 					stockTxCommitQueue = append(stockTxCommitQueue, highestBuyTx)
 				} else { // sellQuantityRemaining < buyQuantityRemaining
 					var sellChildTx = createChildTx(sellTx, sellQuantityRemaining, highestBuyTx.Order.StockPrice)
@@ -219,11 +222,10 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 			buysHasNext = buyIter.Next()
 		}
 
-		sellTx.QuantityTx = sellTx.Order.Quantity - sellQuantityRemaining
-
 		if sellQuantityRemaining > 0 {
 			sellTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
 		} else { // = 0
+			sellTx.QuantityTx = sellTx.Order.Quantity - sellQuantityRemaining
 			sellTx.Order.OrderStatus = "COMPLETED"
 		}
 
