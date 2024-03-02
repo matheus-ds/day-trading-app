@@ -73,7 +73,9 @@ func createChildTx(parentTx models.StockMatch, quantityTraded int, priceTraded i
 	var childTx = parentTx
 	childTx.Order.ParentStockTxID = &parentTx.Order.StockTxID
 	childTx.Order.StockTxID = strings.ToLower(childTx.Order.StockID) + "StockTxId" + uuid.New().String() // todo fix?
+	childTx.Order.StockPrice = priceTraded
 	childTx.PriceTx = priceTraded
+	childTx.Order.Quantity = quantityTraded
 	childTx.QuantityTx = quantityTraded
 	childTx.Order.TimeStamp = time.Now().Unix()
 	childTx.Order.OrderStatus = "COMPLETED"
