@@ -69,16 +69,20 @@ func getOrderbook(tx models.StockTransaction) *orderbook {
 }
 
 // Create child transaction based on parentTx, ordering some specified quantity of otherTx.
-func createChildTx(parentTx models.StockMatch, quantityTraded int, priceTraded int) models.StockMatch {
-	var childTx = parentTx
+// Also adds transaction cost to parentTx.CostTotalTx.
+func createChildTx(parentTx *models.StockMatch, quantityTraded int, priceTraded int) models.StockMatch {
+	var childTx = *parentTx
 	childTx.Order.ParentStockTxID = &parentTx.Order.StockTxID
 	childTx.Order.StockTxID = strings.ToLower(childTx.Order.StockID) + "StockTxId" + uuid.New().String() // todo fix?
 	childTx.Order.StockPrice = priceTraded
 	childTx.PriceTx = priceTraded
 	childTx.Order.Quantity = quantityTraded
 	childTx.QuantityTx = quantityTraded
+	childTx.CostTotalTx = quantityTraded * priceTraded
 	childTx.Order.TimeStamp = time.Now().Unix()
 	childTx.Order.OrderStatus = "COMPLETED"
+
+	parentTx.CostTotalTx += quantityTraded * priceTraded
 	return childTx
 }
 
@@ -86,7 +90,7 @@ func createChildTx(parentTx models.StockMatch, quantityTraded int, priceTraded i
 func Match(order models.StockTransaction) {
 	var book = getOrderbook(order)
 
-	var tx = models.StockMatch{Order: order, QuantityTx: 0, PriceTx: 0}
+	var tx = models.StockMatch{Order: order, QuantityTx: 0, PriceTx: 0, CostTotalTx: 0}
 
 	if order.IsBuy {
 		book.matchBuy(tx)
@@ -129,8 +133,9 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 				if buyQuantityRemaining >= sellQuantityRemaining {
 					if buyTx.Order.Quantity == sellQuantityRemaining { // perfect match, no children
 						buyTx.PriceTx = lowestSellTx.Order.StockPrice
+						buyTx.CostTotalTx += buyTx.Order.Quantity * lowestSellTx.Order.StockPrice
 					} else {
-						var buyChildTx = createChildTx(buyTx, sellQuantityRemaining, lowestSellTx.Order.StockPrice)
+						var buyChildTx = createChildTx(&buyTx, sellQuantityRemaining, lowestSellTx.Order.StockPrice)
 						stockTxCommitQueue = append(stockTxCommitQueue, buyChildTx)
 					}
 
@@ -139,14 +144,15 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 						lowestSellTx.PriceTx = lowestSellTx.Order.StockPrice
 					}
 					lowestSellTx.QuantityTx = lowestSellTx.Order.Quantity - sellQuantityRemaining
+					lowestSellTx.CostTotalTx += sellQuantityRemaining * lowestSellTx.Order.StockPrice
 					lowestSellTx.Order.OrderStatus = "COMPLETED"
 					stockTxCommitQueue = append(stockTxCommitQueue, lowestSellTx)
 				} else { // buyQuantityRemaining < sellQuantityRemaining
-					var buyChildTx = createChildTx(buyTx, buyQuantityRemaining, lowestSellTx.Order.StockPrice)
+					var buyChildTx = createChildTx(&buyTx, buyQuantityRemaining, lowestSellTx.Order.StockPrice)
 					stockTxCommitQueue = append(stockTxCommitQueue, buyChildTx)
 
 					lowestSellTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
-					var sellChildTx = createChildTx(lowestSellTx, buyQuantityRemaining, lowestSellTx.Order.StockPrice)
+					var sellChildTx = createChildTx(&lowestSellTx, buyQuantityRemaining, lowestSellTx.Order.StockPrice)
 					stockTxCommitQueue = append(stockTxCommitQueue, sellChildTx)
 				}
 			}
@@ -198,8 +204,9 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 				if sellQuantityRemaining >= buyQuantityRemaining {
 					if sellTx.Order.Quantity == buyQuantityRemaining { // perfect match, no children
 						sellTx.PriceTx = highestBuyTx.Order.StockPrice
+						sellTx.CostTotalTx += sellTx.Order.Quantity * highestBuyTx.Order.StockPrice
 					} else {
-						var sellChildTx = createChildTx(sellTx, buyQuantityRemaining, highestBuyTx.Order.StockPrice)
+						var sellChildTx = createChildTx(&sellTx, buyQuantityRemaining, highestBuyTx.Order.StockPrice)
 						stockTxCommitQueue = append(stockTxCommitQueue, sellChildTx)
 					}
 
@@ -208,14 +215,15 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 						highestBuyTx.PriceTx = highestBuyTx.Order.StockPrice
 					}
 					highestBuyTx.QuantityTx = highestBuyTx.Order.Quantity - buyQuantityRemaining
+					highestBuyTx.CostTotalTx += buyQuantityRemaining * highestBuyTx.Order.StockPrice
 					highestBuyTx.Order.OrderStatus = "COMPLETED"
 					stockTxCommitQueue = append(stockTxCommitQueue, highestBuyTx)
 				} else { // sellQuantityRemaining < buyQuantityRemaining
-					var sellChildTx = createChildTx(sellTx, sellQuantityRemaining, highestBuyTx.Order.StockPrice)
+					var sellChildTx = createChildTx(&sellTx, sellQuantityRemaining, highestBuyTx.Order.StockPrice)
 					stockTxCommitQueue = append(stockTxCommitQueue, sellChildTx)
 
 					highestBuyTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
-					var buyChildTx = createChildTx(highestBuyTx, sellQuantityRemaining, highestBuyTx.Order.StockPrice)
+					var buyChildTx = createChildTx(&highestBuyTx, sellQuantityRemaining, highestBuyTx.Order.StockPrice)
 					stockTxCommitQueue = append(stockTxCommitQueue, buyChildTx)
 				}
 			}

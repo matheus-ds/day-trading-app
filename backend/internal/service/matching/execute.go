@@ -26,7 +26,7 @@ func executeBuy(tx models.StockMatch) {
 		// Delete wallet transaction
 
 	} else if tx.Order.OrderStatus == "PARTIALLY_FULFILLED" {
-		// Refund remaining wallet amount (infer from children; need to query for them)
+		// Refund remaining wallet amount
 
 		// Delete wallet transaction
 
