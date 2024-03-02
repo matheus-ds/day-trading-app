@@ -4,10 +4,15 @@ import "day-trading-app/backend/internal/service/models"
 
 func ExecuteOrders(stockTxCommitQueue []models.StockMatch) {
 	for _, tx := range stockTxCommitQueue {
-		if tx.Order.IsBuy {
-			executeBuy(tx)
-		} else {
-			executeSell(tx)
+		if isParent(tx) {
+			// Update stock transaction as completed
+
+		} else { // child or non-parent
+			if tx.Order.IsBuy {
+				executeBuy(tx)
+			} else {
+				executeSell(tx)
+			}
 		}
 	}
 }
@@ -21,7 +26,7 @@ func executeBuy(tx models.StockMatch) {
 		// Delete wallet transaction
 
 	} else if tx.Order.OrderStatus == "PARTIALLY_FULFILLED" {
-		// Refund remaining wallet amount
+		// Refund remaining wallet amount (infer from children; need to query for them)
 
 		// Delete wallet transaction
 
@@ -44,7 +49,7 @@ func executeSell(tx models.StockMatch) {
 		// Delete stock transaction
 
 	} else if tx.Order.OrderStatus == "PARTIALLY_FULFILLED" {
-		// Add remaining stock quantity back to user portfolio
+		// Add remaining stock quantity back to user portfolio (remaining = Order.Quantity - QuantityTx)
 
 	} else if tx.Order.OrderStatus == "COMPLETED" {
 		// Update stock transaction to completed
@@ -58,4 +63,8 @@ func executeSell(tx models.StockMatch) {
 	} else {
 		// Error: spelling probably
 	}
+}
+
+func isParent(tx models.StockMatch) bool {
+	return (tx.Order.OrderStatus != "IN_PROGRESS") && (tx.PriceTx == 0)
 }

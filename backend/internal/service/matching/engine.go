@@ -94,7 +94,7 @@ func Match(order models.StockTransaction) {
 		book.matchSell(tx)
 	}
 
-	// ExecuteOrders(stockTxCommitQueue) todo: Not sure how to best pass queue and execution flow
+	ExecuteOrders(stockTxCommitQueue)
 }
 
 // matchBuy() and matchSell() are basically mirrors of each other, with "buy" and "sell" swapped.
@@ -137,8 +137,8 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 					book.sells.Delete(lowestSellTx.Order)
 					if lowestSellTx.Order.OrderStatus == "IN_PROGRESS" { // not parent
 						lowestSellTx.PriceTx = lowestSellTx.Order.StockPrice
-						lowestSellTx.QuantityTx = lowestSellTx.Order.Quantity - sellQuantityRemaining
 					}
+					lowestSellTx.QuantityTx = lowestSellTx.Order.Quantity - sellQuantityRemaining
 					lowestSellTx.Order.OrderStatus = "COMPLETED"
 					stockTxCommitQueue = append(stockTxCommitQueue, lowestSellTx)
 				} else { // buyQuantityRemaining < sellQuantityRemaining
@@ -154,10 +154,11 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 			sellsHasNext = sellIter.Next()
 		}
 
+		buyTx.QuantityTx = buyTx.Order.Quantity - buyQuantityRemaining
+
 		if buyQuantityRemaining > 0 {
 			buyTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
 		} else { // = 0
-			buyTx.QuantityTx = buyTx.Order.Quantity - buyQuantityRemaining
 			buyTx.Order.OrderStatus = "COMPLETED"
 		}
 
@@ -205,8 +206,8 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 					book.buys.Delete(highestBuyTx.Order)
 					if highestBuyTx.Order.OrderStatus == "IN_PROGRESS" { // not parent
 						highestBuyTx.PriceTx = highestBuyTx.Order.StockPrice
-						highestBuyTx.QuantityTx = highestBuyTx.Order.Quantity - buyQuantityRemaining
 					}
+					highestBuyTx.QuantityTx = highestBuyTx.Order.Quantity - buyQuantityRemaining
 					highestBuyTx.Order.OrderStatus = "COMPLETED"
 					stockTxCommitQueue = append(stockTxCommitQueue, highestBuyTx)
 				} else { // sellQuantityRemaining < buyQuantityRemaining
@@ -222,10 +223,11 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 			buysHasNext = buyIter.Next()
 		}
 
+		sellTx.QuantityTx = sellTx.Order.Quantity - sellQuantityRemaining
+
 		if sellQuantityRemaining > 0 {
 			sellTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
 		} else { // = 0
-			sellTx.QuantityTx = sellTx.Order.Quantity - sellQuantityRemaining
 			sellTx.Order.OrderStatus = "COMPLETED"
 		}
 
@@ -249,7 +251,7 @@ func CancelOrder(order models.StockTransaction) (wasCancelled bool) {
 		}
 	}
 
-	// ExecuteOrders(stockTxCommitQueue) todo: Not sure how to best pass queue and execution flow
+	ExecuteOrders(stockTxCommitQueue)
 
 	return wasCancelled
 }
