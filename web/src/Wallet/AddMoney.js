@@ -16,7 +16,7 @@ function AddMoney() {
             if (msg.success) {
                 navigate(0);
             } else {
-                alert(msg.message);
+                alert(msg.data.error);
             }
       
         setLoading(false)

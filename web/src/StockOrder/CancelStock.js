@@ -12,7 +12,7 @@ function CancelStock() {
             let msg = await api.cancelStock(val);
             console.log(msg.success)
             if (msg.success == false) {
-                alert(msg.message);
+                alert(msg.data.error);
             }
       
         setLoading(false)

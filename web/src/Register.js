@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { Form, Button } from 'react-bootstrap';
 import { useNavigate } from "react-router-dom";
+import * as api from './Api.js'
+
 
 const Register = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = (event) => {
@@ -27,12 +30,20 @@ const Register = () => {
               <Form.Label>Email address</Form.Label>
               <Form.Control
                 type="email"
-                placeholder="Enter email"
+                placeholder="user name"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </Form.Group>
-
+            <Form.Group controlId="formBasicPassword">
+              <Form.Label>Name</Form.Label>
+              <Form.Control
+                type="password"
+                placeholder="name"
+                value={password}
+                onChange={(e) => setName(e.target.value)}
+              />
+            </Form.Group>
             <Form.Group controlId="formBasicPassword">
               <Form.Label>Password</Form.Label>
               <Form.Control
@@ -42,8 +53,9 @@ const Register = () => {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </Form.Group>
+
             <div style={{paddingTop: 30}}>
-            <Button variant="primary" type="submit" block>
+            <Button onClick={() => api.register(email, name, password)} variant="primary" type="submit" block>
               Register
             </Button>
             <Button onClick={() => navigate('/login')}

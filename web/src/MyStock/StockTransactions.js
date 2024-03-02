@@ -22,7 +22,7 @@ const StockTransactions = () => {
         if (data.success) {
           setVal(data.data);
         } else {
-            setVal(data.message);
+            setVal(data.data.error);
         }
         setLoading(false); 
       } catch (error) {

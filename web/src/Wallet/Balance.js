@@ -20,7 +20,7 @@ const Balance = () => {
         if (data.success) {
             setVal(data.data.balance);
         } else {
-          setVal(data.message);
+          setVal(data.data.error);
         }
         setLoading(false); 
       } catch (error) {
