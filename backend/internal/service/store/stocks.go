@@ -228,3 +228,15 @@ func (mh *mongoHandler) CancelStockTransaction(userName string, stockTxID string
 
 	return nil
 }
+
+// NOT TESTED.
+func (mh *mongoHandler) deleteStockTransaction(userName string, stockTxID string) error {
+	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
+
+	_, err := collection.DeleteOne(context.Background(), bson.M{"stock_tx_id": stockTxID})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
