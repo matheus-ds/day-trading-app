@@ -92,6 +92,7 @@ func (mh *mongoHandler) SetWalletBalance(userName string, newBalance int) error 
 
 // Not Tested.
 func (mh *mongoHandler) AddWalletTransaction(userName string, walletTxID string, stockID string, is_debit bool, amount int, timeStamp int64) error {
+
 	var walletTx models.WalletTransaction = models.WalletTransaction{
 		UserName:   userName,
 		WalletTxID: walletTxID,
@@ -100,10 +101,9 @@ func (mh *mongoHandler) AddWalletTransaction(userName string, walletTxID string,
 		Amount:     amount,
 		TimeStamp:  timeStamp,
 	}
-
 	// Add to 'wallet_transactions' collection
 	collection := mh.client.Database("day-trading-app").Collection("wallet_transactions")
-	_, err := collection.InsertOne(context.Background(), bson.M{"stock_tx_id": walletTx})
+	_, err := collection.InsertOne(context.Background(), walletTx)
 	if err != nil {
 		return err
 	}
@@ -119,23 +119,19 @@ func (mh *mongoHandler) AddWalletTransaction(userName string, walletTxID string,
 	if err != nil {
 		return err
 	}
-
-	user.WalletTxns = append(user.WalletTxns, walletTx)
-
-	// Add to the user's wallet transactions
-	_, err = collection.ReplaceOne(context.Background(), bson.M{"user_name": userName}, user)
+	// update the user's WalletTxns
+	_, err = collection.UpdateOne(context.Background(), bson.M{"user_name": user.UserName}, bson.M{"$push": bson.M{"WalletTxns": walletTx}})
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
 // Not Tested.
 func (mh *mongoHandler) DeleteWalletTransaction(userName string, walletTxID string) error {
-	// Remove from 'wallet_transactions' collection
+	// Remove from 'wallet_transactions' collection using the walletTxID
 	collection := mh.client.Database("day-trading-app").Collection("wallet_transactions")
-	_, err := collection.DeleteOne(context.Background(), bson.M{"stock_tx_id": walletTxID})
+	_, err := collection.DeleteOne(context.Background(), bson.M{"wallet_tx_id": walletTxID})
 	if err != nil {
 		return err
 	}
@@ -153,17 +149,9 @@ func (mh *mongoHandler) DeleteWalletTransaction(userName string, walletTxID stri
 	}
 
 	// Remove the transaction
-	for i, tx := range user.WalletTxns {
-		if tx.WalletTxID == walletTxID {
-			user.WalletTxns = append(user.WalletTxns[:i], user.WalletTxns[i+1:]...)
-		}
-	}
-
-	// Remove from the user's wallet transactions
-	_, err = collection.ReplaceOne(context.Background(), bson.M{"user_name": userName}, user)
+	_, err = collection.UpdateOne(context.Background(), bson.M{"user_name": userName}, bson.M{"$pull": bson.M{"WalletTxns": bson.M{"wallet_tx_id": walletTxID}}})
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
