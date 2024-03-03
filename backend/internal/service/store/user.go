@@ -120,8 +120,10 @@ func (mh *mongoHandler) AddWalletTransaction(userName string, walletTxID string,
 		return err
 	}
 
+	user.WalletTxns = append(user.WalletTxns, walletTx)
+
 	// Add to the user's wallet transactions
-	//_, err = collection.InsertOne() // todo
+	_, err = collection.ReplaceOne(context.Background(), bson.M{"user_name": userName}, user)
 	if err != nil {
 		return err
 	}
@@ -130,10 +132,10 @@ func (mh *mongoHandler) AddWalletTransaction(userName string, walletTxID string,
 }
 
 // Not Tested.
-func (mh *mongoHandler) DeleteWalletTransaction(userName string, WalletTxID string) error {
+func (mh *mongoHandler) DeleteWalletTransaction(userName string, walletTxID string) error {
 	// Remove from 'wallet_transactions' collection
 	collection := mh.client.Database("day-trading-app").Collection("wallet_transactions")
-	_, err := collection.DeleteOne(context.Background(), bson.M{"stock_tx_id": WalletTxID})
+	_, err := collection.DeleteOne(context.Background(), bson.M{"stock_tx_id": walletTxID})
 	if err != nil {
 		return err
 	}
@@ -150,8 +152,15 @@ func (mh *mongoHandler) DeleteWalletTransaction(userName string, WalletTxID stri
 		return err
 	}
 
-	// Add to the user's wallet transactions
-	//_, err = collection.DeleteOne() // todo
+	// Remove the transaction
+	for i, tx := range user.WalletTxns {
+		if tx.WalletTxID == walletTxID {
+			user.WalletTxns = append(user.WalletTxns[:i], user.WalletTxns[i+1:]...)
+		}
+	}
+
+	// Remove from the user's wallet transactions
+	_, err = collection.ReplaceOne(context.Background(), bson.M{"user_name": userName}, user)
 	if err != nil {
 		return err
 	}
