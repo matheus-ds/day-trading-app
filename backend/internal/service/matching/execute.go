@@ -29,9 +29,11 @@ func executeBuy(tx models.StockMatch) {
 		walletBalance, _ := mh.GetWalletBalance(tx.Order.UserName)
 		mh.SetWalletBalance(tx.Order.UserName, walletBalance+deducted)
 
-		// Delete stock transaction todo
+		// Delete stock transaction
+		mh.DeleteStockTransaction(tx.Order.StockTxID)
 
-		// Delete wallet transaction todo
+		// Delete wallet transaction
+		mh.DeleteWalletTransaction(tx.Order.UserName, tx.Order.WalletTxID)
 
 	} else if tx.Order.OrderStatus == "PARTIALLY_FULFILLED" {
 		// Refund remaining wallet amount
@@ -39,7 +41,8 @@ func executeBuy(tx models.StockMatch) {
 		walletBalance, _ := mh.GetWalletBalance(tx.Order.UserName)
 		mh.SetWalletBalance(tx.Order.UserName, walletBalance+(deducted-tx.CostTotalTx))
 
-		// Delete wallet transaction todo
+		// Delete wallet transaction
+		mh.DeleteWalletTransaction(tx.Order.UserName, tx.Order.WalletTxID)
 
 	} else if tx.Order.OrderStatus == "COMPLETED" {
 		// Add stock quantity to user portfolio
@@ -60,7 +63,8 @@ func executeSell(tx models.StockMatch) {
 		// Add stock quantity back to user portfolio
 		mh.AddStockToUser(tx.Order.UserName, tx.Order.StockID, tx.Order.Quantity)
 
-		// Delete stock transaction // todo
+		// Delete stock transaction
+		mh.DeleteStockTransaction(tx.Order.StockTxID)
 
 	} else if tx.Order.OrderStatus == "PARTIALLY_FULFILLED" {
 		// Add remaining stock quantity back to user portfolio (remaining = Order.Quantity - QuantityTx)
@@ -74,7 +78,8 @@ func executeSell(tx models.StockMatch) {
 		walletBalance, _ := mh.GetWalletBalance(tx.Order.UserName)
 		mh.SetWalletBalance(tx.Order.UserName, walletBalance+tx.CostTotalTx)
 
-		// Insert wallet transaction todo
+		// Insert wallet transaction
+		mh.DeleteWalletTransaction(tx.Order.UserName, tx.Order.WalletTxID)
 
 	} else if tx.Order.OrderStatus == "" {
 		// Error: empty string
