@@ -9,7 +9,7 @@ var mh = store.GetMongoHandler()
 
 func ExecuteOrders(stockTxCommitQueue []models.StockMatch) {
 	for _, tx := range stockTxCommitQueue {
-		if isParent(tx) && !tx.Killed {
+		if tx.IsParent && !tx.Killed {
 			// Update stock transaction status
 			mh.UpdateStockOrderStatus(tx.Order.UserName, tx.Order.StockTxID, tx.Order.OrderStatus)
 		} else { // child or non-parent
@@ -86,8 +86,4 @@ func executeSell(tx models.StockMatch) {
 	} else {
 		// Error: spelling probably
 	}
-}
-
-func isParent(tx models.StockMatch) bool {
-	return (tx.Order.OrderStatus != "IN_PROGRESS") && (tx.PriceTx == 0)
 }

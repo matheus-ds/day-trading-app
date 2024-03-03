@@ -82,6 +82,7 @@ func createChildTx(parentTx *models.StockMatch, quantityTraded int, priceTraded 
 	childTx.Order.TimeStamp = time.Now().Unix()
 	childTx.Order.OrderStatus = "COMPLETED"
 
+	parentTx.IsParent = true
 	parentTx.CostTotalTx += quantityTraded * priceTraded
 	return childTx
 }
@@ -90,7 +91,7 @@ func createChildTx(parentTx *models.StockMatch, quantityTraded int, priceTraded 
 func Match(order models.StockTransaction) {
 	var book = getOrderbook(order)
 
-	var tx = models.StockMatch{Order: order, QuantityTx: 0, PriceTx: 0, CostTotalTx: 0, Killed: false}
+	var tx = models.StockMatch{Order: order, QuantityTx: 0, PriceTx: 0, CostTotalTx: 0, IsParent: false, Killed: false}
 
 	if order.IsBuy {
 		book.matchBuy(tx)
@@ -120,6 +121,7 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 
 		for buyQuantityRemaining > 0 && sellsHasNext {
 			lowestSellTx := sellIter.Value().(models.StockMatch)
+			sellsHasNext = sellIter.Next()
 			sellQuantityRemaining := lowestSellTx.Order.Quantity - lowestSellTx.QuantityTx
 
 			if isExpired(lowestSellTx) {
@@ -135,8 +137,13 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 						buyTx.PriceTx = lowestSellTx.Order.StockPrice
 						buyTx.CostTotalTx += buyTx.Order.Quantity * lowestSellTx.Order.StockPrice
 					} else {
-						var buyChildTx = createChildTx(&buyTx, sellQuantityRemaining, lowestSellTx.Order.StockPrice)
-						stockTxCommitQueue = append(stockTxCommitQueue, buyChildTx)
+						if buyTx.Order.OrderType == "MARKET" && !buyTx.IsParent && sellsHasNext {
+							var buyChildTx = createChildTx(&buyTx, sellQuantityRemaining, lowestSellTx.Order.StockPrice)
+							stockTxCommitQueue = append(stockTxCommitQueue, buyChildTx)
+						} else {
+							buyTx.PriceTx = lowestSellTx.Order.StockPrice
+							buyTx.CostTotalTx += buyTx.Order.Quantity * lowestSellTx.Order.StockPrice
+						}
 					}
 
 					book.sells.Delete(lowestSellTx.Order)
@@ -157,7 +164,6 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 				}
 			}
 			buyQuantityRemaining -= sellQuantityRemaining
-			sellsHasNext = sellIter.Next()
 		}
 
 		buyTx.QuantityTx = buyTx.Order.Quantity - buyQuantityRemaining
@@ -191,6 +197,7 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 
 		for sellQuantityRemaining > 0 && buysHasNext {
 			highestBuyTx := buyIter.Value().(models.StockMatch)
+			buysHasNext = buyIter.Next()
 			buyQuantityRemaining := highestBuyTx.Order.Quantity - highestBuyTx.QuantityTx
 
 			if isExpired(highestBuyTx) {
@@ -206,8 +213,13 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 						sellTx.PriceTx = highestBuyTx.Order.StockPrice
 						sellTx.CostTotalTx += sellTx.Order.Quantity * highestBuyTx.Order.StockPrice
 					} else {
-						var sellChildTx = createChildTx(&sellTx, buyQuantityRemaining, highestBuyTx.Order.StockPrice)
-						stockTxCommitQueue = append(stockTxCommitQueue, sellChildTx)
+						if sellTx.Order.OrderType == "MARKET" && !sellTx.IsParent && buysHasNext {
+							var sellChildTx = createChildTx(&sellTx, buyQuantityRemaining, highestBuyTx.Order.StockPrice)
+							stockTxCommitQueue = append(stockTxCommitQueue, sellChildTx)
+						} else {
+							sellTx.PriceTx = highestBuyTx.Order.StockPrice
+							sellTx.CostTotalTx += sellTx.Order.Quantity * highestBuyTx.Order.StockPrice
+						}
 					}
 
 					book.buys.Delete(highestBuyTx.Order)
@@ -228,7 +240,6 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 				}
 			}
 			sellQuantityRemaining -= buyQuantityRemaining
-			buysHasNext = buyIter.Next()
 		}
 
 		sellTx.QuantityTx = sellTx.Order.Quantity - sellQuantityRemaining
