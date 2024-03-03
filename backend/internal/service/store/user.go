@@ -89,3 +89,72 @@ func (mh *mongoHandler) SetWalletBalance(userName string, newBalance int) error 
 	}
 	return nil
 }
+
+// Not Tested.
+func (mh *mongoHandler) AddWalletTransaction(userName string, walletTxID string, stockID string, is_debit bool, amount int, timeStamp int64) error {
+	var walletTx models.WalletTransaction = models.WalletTransaction{
+		UserName:   userName,
+		WalletTxID: walletTxID,
+		StockID:    stockID,
+		Is_debit:   is_debit,
+		Amount:     amount,
+		TimeStamp:  timeStamp,
+	}
+
+	// Add to 'wallet_transactions' collection
+	collection := mh.client.Database("day-trading-app").Collection("wallet_transactions")
+	_, err := collection.InsertOne(context.Background(), bson.M{"stock_tx_id": walletTx})
+	if err != nil {
+		return err
+	}
+
+	// * Add to user's entry in 'users' collection *
+
+	// Access the collection where user data is stored
+	collection = mh.client.Database("day-trading-app").Collection("users")
+
+	// Find the user by their username
+	var user models.User
+	err = collection.FindOne(context.Background(), bson.M{"user_name": userName}).Decode(&user)
+	if err != nil {
+		return err
+	}
+
+	// Add to the user's wallet transactions
+	//_, err = collection.InsertOne() // todo
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// Not Tested.
+func (mh *mongoHandler) DeleteWalletTransaction(userName string, WalletTxID string) error {
+	// Remove from 'wallet_transactions' collection
+	collection := mh.client.Database("day-trading-app").Collection("wallet_transactions")
+	_, err := collection.DeleteOne(context.Background(), bson.M{"stock_tx_id": WalletTxID})
+	if err != nil {
+		return err
+	}
+
+	// Remove from user's entry in 'users' collection
+
+	// Access the collection where user data is stored
+	collection = mh.client.Database("day-trading-app").Collection("users")
+
+	// Find the user by their username
+	var user models.User
+	err = collection.FindOne(context.Background(), bson.M{"user_name": userName}).Decode(&user)
+	if err != nil {
+		return err
+	}
+
+	// Add to the user's wallet transactions
+	//_, err = collection.DeleteOne() // todo
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
