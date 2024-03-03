@@ -182,27 +182,6 @@ func (mh *mongoHandler) UpdateStockOrderStatus(userName string, stockTxID string
 	if err != nil {
 		return err
 	}
-	// if orderStatus is "Completed" then update the user's WalletTransaction
-	if orderStatus == "COMPLETED" {
-		// get the stock transaction with the given stockTxID
-		var transaction models.StockTransaction
-		err := collection.FindOne(context.Background(), bson.M{"stock_tx_id": stockTxID}).Decode(&transaction)
-		if err != nil {
-			return err
-		}
-		// get the user's WalletTransaction
-		collection = mh.client.Database("day-trading-app").Collection("wallet_transactions")
-		var walletTransaction models.WalletTransaction
-		err = collection.FindOne(context.Background(), bson.M{"wallet_tx_id": transaction.WalletTxID}).Decode(&walletTransaction)
-		if err != nil {
-			return err
-		}
-		// set wallet_transaction with the given userName
-		_, err = collection.UpdateOne(context.Background(), bson.M{"wallet_tx_id": transaction.WalletTxID}, bson.M{"$set": bson.M{"user_name": userName}})
-		if err != nil {
-			return err
-		}
-	}
 	return nil
 
 }
@@ -224,6 +203,18 @@ func (mh *mongoHandler) CancelStockTransaction(userName string, stockTxID string
 		}
 	} else {
 		return errors.New("transaction cannot be cancelled because it is not in progress or partially fulfilled")
+	}
+
+	return nil
+}
+
+// NOT TESTED.
+func (mh *mongoHandler) DeleteStockTransaction(stockTxID string) error {
+	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
+
+	_, err := collection.DeleteOne(context.Background(), bson.M{"stock_tx_id": stockTxID})
+	if err != nil {
+		return err
 	}
 
 	return nil
