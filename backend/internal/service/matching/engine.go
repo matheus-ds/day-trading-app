@@ -90,7 +90,7 @@ func createChildTx(parentTx *models.StockMatch, quantityTraded int, priceTraded 
 func Match(order models.StockTransaction) {
 	var book = getOrderbook(order)
 
-	var tx = models.StockMatch{Order: order, QuantityTx: 0, PriceTx: 0, CostTotalTx: 0}
+	var tx = models.StockMatch{Order: order, QuantityTx: 0, PriceTx: 0, CostTotalTx: 0, Killed: false}
 
 	if order.IsBuy {
 		book.matchBuy(tx)
@@ -271,6 +271,7 @@ func (book orderbook) cancelBuyOrder(order models.StockTransaction) (wasFound bo
 	if wasFound {
 		book.buys.Delete(order)
 		victimTx := victimTx.(models.StockMatch)
+		victimTx.Killed = true
 		stockTxCommitQueue = append(stockTxCommitQueue, victimTx)
 	}
 	return wasFound
@@ -281,6 +282,7 @@ func (book orderbook) cancelSellOrder(order models.StockTransaction) (wasFound b
 	if wasFound {
 		book.sells.Delete(order)
 		victimTx := victimTx.(models.StockMatch)
+		victimTx.Killed = true
 		stockTxCommitQueue = append(stockTxCommitQueue, victimTx)
 	}
 	return wasFound

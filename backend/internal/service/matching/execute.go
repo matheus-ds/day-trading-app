@@ -9,7 +9,7 @@ var mh = store.GetMongoHandler()
 
 func ExecuteOrders(stockTxCommitQueue []models.StockMatch) {
 	for _, tx := range stockTxCommitQueue {
-		if isParent(tx) {
+		if isParent(tx) && !tx.Killed {
 			// Update stock transaction as completed
 			mh.UpdateStockOrderStatus(tx.Order.UserName, tx.Order.StockTxID, tx.Order.OrderStatus)
 		} else { // child or non-parent

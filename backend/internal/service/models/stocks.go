@@ -36,4 +36,5 @@ type StockMatch struct {
 	QuantityTx  int              `json:"quantityTx" bson:"quantity_tx"`
 	PriceTx     int              `json:"priceTx" bson:"price_tx"`
 	CostTotalTx int              `json:"costTotalTx" bson:"cost_total_tx"`
+	Killed      bool             `json:"expiredOrCancelled" bson:"expired_or_cancelled"`
 }
