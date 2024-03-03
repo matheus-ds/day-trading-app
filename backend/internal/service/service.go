@@ -42,6 +42,8 @@ type Database interface {
 	SetWalletBalance(userName string, newBalance int) error
 	GetWalletBalance(userName string) (int, error)
 	GetWalletTransactions(userName string) ([]models.WalletTransaction, error)
+	AddWalletTransaction(userName string, walletTxID string, stockID string, is_debit bool, amount int, timeStamp int64) error
+	DeleteWalletTransaction(userName string, walletTxID string) error
 }
 
 type serviceImpl struct {
