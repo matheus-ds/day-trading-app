@@ -7,18 +7,28 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-// Not Tested due to Register not implemented
+// Tested
 func (mh *mongoHandler) RegisterUser(userName, password, name string) error {
 	//create user in db
 	collection := mh.client.Database("day-trading-app").Collection("users")
-	_, err := collection.InsertOne(context.Background(), models.User{UserName: userName, PasswordHash: password, Name: name})
+	// Insert the user into the database
+	var user models.User = models.User{
+		UserName:     userName,
+		PasswordHash: password,
+		Name:         name,
+		Balance:      0,
+		Stocks:       []models.PortfolioItem{},
+		WalletTxns:   []models.WalletTransaction{},
+	}
+	_, err := collection.InsertOne(context.Background(), user)
+	//_, err := collection.InsertOne(context.Background(), models.User{UserName: userName, PasswordHash: password, Name: name})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-// Not Tested, No Postman Collection
+// Tested
 func (mh *mongoHandler) GetUserByUserName(userName string) (models.User, error) {
 	// Access the collection where user data is stored
 	collection := mh.client.Database("day-trading-app").Collection("users")
@@ -29,6 +39,8 @@ func (mh *mongoHandler) GetUserByUserName(userName string) (models.User, error) 
 	if err != nil {
 		return models.User{}, err
 	}
+	//Test USE ONLY
+	//fmt.Println(user)
 	return user, nil
 }
 
@@ -90,7 +102,7 @@ func (mh *mongoHandler) SetWalletBalance(userName string, newBalance int) error 
 	return nil
 }
 
-// Not Tested.
+// Tested.
 func (mh *mongoHandler) AddWalletTransaction(userName string, walletTxID string, stockID string, is_debit bool, amount int, timeStamp int64) error {
 
 	var walletTx models.WalletTransaction = models.WalletTransaction{
@@ -101,6 +113,7 @@ func (mh *mongoHandler) AddWalletTransaction(userName string, walletTxID string,
 		Amount:     amount,
 		TimeStamp:  timeStamp,
 	}
+
 	// Add to 'wallet_transactions' collection
 	collection := mh.client.Database("day-trading-app").Collection("wallet_transactions")
 	_, err := collection.InsertOne(context.Background(), walletTx)
@@ -119,15 +132,15 @@ func (mh *mongoHandler) AddWalletTransaction(userName string, walletTxID string,
 	if err != nil {
 		return err
 	}
-	// update the user's WalletTxns
-	_, err = collection.UpdateOne(context.Background(), bson.M{"user_name": user.UserName}, bson.M{"$push": bson.M{"WalletTxns": walletTx}})
+	// update the user's wallet_txns
+	_, err = collection.UpdateOne(context.Background(), bson.M{"user_name": user.UserName}, bson.M{"$push": bson.M{"wallet_txns": walletTx}})
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-// Not Tested.
+// Tested.
 func (mh *mongoHandler) DeleteWalletTransaction(userName string, walletTxID string) error {
 	// Remove from 'wallet_transactions' collection using the walletTxID
 	collection := mh.client.Database("day-trading-app").Collection("wallet_transactions")
@@ -141,15 +154,8 @@ func (mh *mongoHandler) DeleteWalletTransaction(userName string, walletTxID stri
 	// Access the collection where user data is stored
 	collection = mh.client.Database("day-trading-app").Collection("users")
 
-	// Find the user by their username
-	var user models.User
-	err = collection.FindOne(context.Background(), bson.M{"user_name": userName}).Decode(&user)
-	if err != nil {
-		return err
-	}
-
 	// Remove the transaction
-	_, err = collection.UpdateOne(context.Background(), bson.M{"user_name": userName}, bson.M{"$pull": bson.M{"WalletTxns": bson.M{"wallet_tx_id": walletTxID}}})
+	_, err = collection.UpdateOne(context.Background(), bson.M{"user_name": userName}, bson.M{"$pull": bson.M{"wallet_txns": bson.M{"wallet_tx_id": walletTxID}}})
 	if err != nil {
 		return err
 	}
