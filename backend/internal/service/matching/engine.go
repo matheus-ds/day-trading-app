@@ -116,6 +116,7 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 	} else {
 		var sellsHasNext = true
 		var sellIter = book.sells.Iterator()
+		sellIter.Next()
 		var buyQuantityRemaining = buyTx.Order.Quantity
 
 		for buyQuantityRemaining > 0 && sellsHasNext {
@@ -192,6 +193,7 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 	} else {
 		var buysHasNext = true
 		var buyIter = book.buys.Iterator()
+		buyIter.Next()
 		var sellQuantityRemaining = sellTx.Order.Quantity
 
 		for sellQuantityRemaining > 0 && buysHasNext {
