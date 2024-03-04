@@ -1,6 +1,8 @@
 package server
 
 import (
+	"day-trading-app/backend/internal/service/middleware"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
@@ -16,6 +18,8 @@ func (s *Server) InializeRoutes() {
 	authorized := s.Router.Group("/")
 	authorized.POST("/register", s.Srv.Register)
 	authorized.POST("/login", s.Srv.AuthenticateUser)
+
+	authorized.Use(middleware.JwtAuthMiddleware(s.DB))
 
 	authorized.POST("/createStock", s.Srv.CreateStock)
 	authorized.POST("/addStockToUser", s.Srv.AddStockToUser)

@@ -1,50 +1,45 @@
 package middleware
 
 import (
+	"day-trading-app/backend/internal/service"
+	"day-trading-app/backend/internal/service/token"
+	"day-trading-app/backend/pkg/logger"
+	"fmt"
 	"net/http"
-	"strings"
 
-	"github.com/matheus-ds/day-trading-app/authentication"
-	"github.com/matheus-ds/day-trading-app/tokenutil" //not sure if i put in the othere 2 go files correctly? the package name at the top all the same? or different plz help me
 	"github.com/gin-gonic/gin"
 )
 
-func JwtAuthMiddleware(secret string) gin.HandlerFunc {
+func JwtAuthMiddleware(db service.Database) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.Request.Header.Get("Authorization")
-		t := strings.Split(authHeader, " ")
-		if len(t) == 2 {
-			authToken := t[1]
-			authorized, err := tokenutil.IsAuthorized(authToken, secret)
-			if authorized {
-				userID, err := tokenutil.ExtractIDFromToken(authToken, secret)
-				if err != nil {
-					c.JSON(http.StatusUnauthorized, domain.ErrorResponse{Message: err.Error()})
-					c.Abort()
-					return
-				}
-				c.Set("x-user-id", userID)
-				c.Next()
+		var err error
+		var userName string
+
+		accessToken := c.Request.Header.Get("token")
+		fmt.Println(accessToken)
+		if userName, err = token.VerifyToken(accessToken); err == nil {
+			fmt.Println(userName)
+			// setting the authenticated userID, orgID in the context
+			// we will use this info for logging and authorization purposes
+			_, err := db.GetUserByUserName(userName)
+			if err != nil {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized request"})
+				logger.Error("Unauthorized request", logger.ErrorType(err))
+				c.Abort()
 				return
 			}
-			c.JSON(http.StatusUnauthorized, domain.ErrorResponse{Message: err.Error()})
-			c.Abort()
+			c.Set("user_name", userName)
+
+			logger.Info("Authenticated user", logger.String("user_name", userName))
+
+			c.Next()
 			return
+
 		}
-		c.JSON(http.StatusUnauthorized, domain.ErrorResponse{Message: "Not authorized"})
+
+		fmt.Println(err)
+		logger.Info("Unauthorized request", logger.ErrorType(err))
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		c.Abort()
 	}
 }
-
-
-//We can get the UserID from the HTTP Web Framework Context as below:
-userID := c.GetString("x-user-id")
-
-//Then, we can use this middleware as below:
-router.Use(middleware.JwtAuthMiddleware(env.AccessTokenSecret))
-
-//When we want to generate the access token, we can call:
-accessToken, err := tokenutil.CreateAccessToken(user, secret, expiry)
-
-//For generating the refresh token, we can call:
-refreshToken, err := tokenutil.CreateRefreshToken(user, secret, expiry)
