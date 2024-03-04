@@ -305,3 +305,28 @@ func (book orderbook) cancelSellOrder(order models.StockTransaction) (wasFound b
 	}
 	return wasFound
 }
+
+// FlushExpired checks all active transactions, pushing any that are expired.
+func FlushExpired() {
+	for _, book := range bookMap {
+		txIter := book.buys.Iterator()
+		for txIter.Next() {
+			tx := txIter.Value().(models.StockMatch)
+			if isExpired(tx) {
+				book.sells.Delete(tx.Order)
+				tx.Killed = true
+				stockTxCommitQueue = append(stockTxCommitQueue, tx)
+			}
+		}
+
+		txIter = book.sells.Iterator()
+		for txIter.Next() {
+			tx := txIter.Value().(models.StockMatch)
+			if isExpired(tx) {
+				book.sells.Delete(tx.Order)
+				tx.Killed = true
+				stockTxCommitQueue = append(stockTxCommitQueue, tx)
+			}
+		}
+	}
+}
