@@ -19,11 +19,9 @@ type orderbook struct {
 	buys  *skiplist.SkipList
 	sells *skiplist.SkipList
 }
-type orderbooks struct {
-	book map[string]*orderbook
-}
+type orderbooks map[string]orderbook
 
-var bookMap *orderbooks = new(orderbooks)
+var bookMap = make(orderbooks)
 var stockTxCommitQueue []models.StockMatch
 
 // Define orderings for orderbooks. Sort first by price, then if equal price, by time.
@@ -59,13 +57,14 @@ func isExpired(tx models.StockMatch) bool {
 	return time.Now().Unix()+(15*60) >= tx.Order.TimeStamp
 }
 
-func getOrderbook(tx models.StockTransaction) *orderbook {
-	if bookMap.book[tx.StockID] == nil {
-		bookMap.book[tx.StockID] = new(orderbook)
-		bookMap.book[tx.StockID].buys = skiplist.NewCustomMap(buyIsLowerPriorityThan)
-		bookMap.book[tx.StockID].sells = skiplist.NewCustomMap(sellIsLowerPriorityThan)
+func getOrderbook(tx models.StockTransaction) orderbook {
+	if bookMap[tx.StockID].buys == nil {
+		bookMap[tx.StockID] = orderbook{
+			buys:  skiplist.NewCustomMap(buyIsLowerPriorityThan),
+			sells: skiplist.NewCustomMap(sellIsLowerPriorityThan),
+		}
 	}
-	return bookMap.book[tx.StockID]
+	return bookMap[tx.StockID]
 }
 
 // Create child transaction based on parentTx, ordering some specified quantity of otherTx.
@@ -261,8 +260,8 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 // CancelOrder halts further activity for a limit transaction with the given stockTxID.
 // If found, the matching transaction is enqueued. Basically a deliberate premature expiration.
 func CancelOrder(order models.StockTransaction) (wasCancelled bool) {
-	var book = bookMap.book[order.StockID]
-	if book != nil {
+	var book = bookMap[order.StockID]
+	if book.buys != nil {
 		if order.IsBuy {
 			wasCancelled = book.cancelBuyOrder(order)
 		} else {
