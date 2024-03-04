@@ -8,7 +8,7 @@ import (
 )
 
 // Tested
-func (mh *mongoHandler) RegisterUser(userName, password, name string) error {
+func (mh *MongoHandler) RegisterUser(userName, password, name string) error {
 	//create user in db
 	collection := mh.client.Database("day-trading-app").Collection("users")
 	// Insert the user into the database
@@ -29,7 +29,7 @@ func (mh *mongoHandler) RegisterUser(userName, password, name string) error {
 }
 
 // Tested
-func (mh *mongoHandler) GetUserByUserName(userName string) (models.User, error) {
+func (mh *MongoHandler) GetUserByUserName(userName string) (models.User, error) {
 	// Access the collection where user data is stored
 	collection := mh.client.Database("day-trading-app").Collection("users")
 
@@ -45,7 +45,7 @@ func (mh *mongoHandler) GetUserByUserName(userName string) (models.User, error) 
 }
 
 // Tested
-func (mh *mongoHandler) GetWalletTransactions(userName string) ([]models.WalletTransaction, error) {
+func (mh *MongoHandler) GetWalletTransactions(userName string) ([]models.WalletTransaction, error) {
 	//For testing purposes only:
 	//userName = "VanguardETF"
 	// Access the collection where user data is stored
@@ -64,7 +64,7 @@ func (mh *mongoHandler) GetWalletTransactions(userName string) ([]models.WalletT
 }
 
 // Tested
-func (mh *mongoHandler) GetWalletBalance(userName string) (int, error) {
+func (mh *MongoHandler) GetWalletBalance(userName string) (int, error) {
 	//For testing purposes only:
 	//userName = "VanguardETF"
 	//access the collection where user data is stored
@@ -80,7 +80,7 @@ func (mh *mongoHandler) GetWalletBalance(userName string) (int, error) {
 }
 
 // Tested
-func (mh *mongoHandler) SetWalletBalance(userName string, newBalance int) error {
+func (mh *MongoHandler) SetWalletBalance(userName string, newBalance int) error {
 	//For testing purposes only:
 	//userName = "VanguardETF"
 	//newBalance = 100000
@@ -103,7 +103,7 @@ func (mh *mongoHandler) SetWalletBalance(userName string, newBalance int) error 
 }
 
 // Tested.
-func (mh *mongoHandler) AddWalletTransaction(userName string, walletTxID string, stockID string, is_debit bool, amount int, timeStamp int64) error {
+func (mh *MongoHandler) AddWalletTransaction(userName string, walletTxID string, stockID string, is_debit bool, amount int, timeStamp int64) error {
 
 	var walletTx models.WalletTransaction = models.WalletTransaction{
 		UserName:   userName,
@@ -141,7 +141,7 @@ func (mh *mongoHandler) AddWalletTransaction(userName string, walletTxID string,
 }
 
 // Tested.
-func (mh *mongoHandler) DeleteWalletTransaction(userName string, walletTxID string) error {
+func (mh *MongoHandler) DeleteWalletTransaction(userName string, walletTxID string) error {
 	// Remove from 'wallet_transactions' collection using the walletTxID
 	collection := mh.client.Database("day-trading-app").Collection("wallet_transactions")
 	_, err := collection.DeleteOne(context.Background(), bson.M{"wallet_tx_id": walletTxID})
