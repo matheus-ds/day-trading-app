@@ -11,7 +11,7 @@ func ExecuteOrders(stockTxCommitQueue []models.StockMatch) {
 	for _, tx := range stockTxCommitQueue {
 		if tx.IsParent && !tx.Killed {
 			// Update stock transaction status
-			mh.UpdateStockOrderStatus(tx.Order.UserName, tx.Order.StockTxID, tx.Order.OrderStatus)
+			mh.UpdateStockOrder(tx.Order)
 		} else { // child or non-parent
 			if tx.Order.IsBuy {
 				executeBuy(tx)
@@ -55,10 +55,12 @@ func executeBuy(tx models.StockMatch) {
 		mh.AddStockToUser(tx.Order.UserName, tx.Order.StockID, tx.Order.Quantity)
 
 		if tx.Order.ParentStockTxID != nil { // child
-			mh.AddStockTransaction(tx.Order)
+			// Add child tx to db
+			mh.PlaceStockOrder(tx.Order.UserName, tx.Order.StockID, tx.Order.IsBuy, tx.Order.OrderType, tx.Order.Quantity, tx.Order.StockPrice)
+			mh.UpdateStockOrder(tx.Order) // to update parentID as well. Optimize later.
 		} else if tx.IsParent {
 			// Update stock transaction status to completed
-			mh.UpdateStockOrderStatus(tx.Order.UserName, tx.Order.StockTxID, tx.Order.OrderStatus)
+			mh.UpdateStockOrder(tx.Order)
 		} else {
 			tx.Order.StockPrice = tx.PriceTx
 			mh.UpdateStockOrder(tx.Order)
@@ -98,10 +100,12 @@ func executeSell(tx models.StockMatch) {
 		mh.DeleteWalletTransaction(tx.Order.UserName, tx.Order.WalletTxID)
 
 		if tx.Order.ParentStockTxID != nil { // child
-			mh.AddStockTransaction(tx.Order)
+			// Add child tx to db
+			mh.PlaceStockOrder(tx.Order.UserName, tx.Order.StockID, tx.Order.IsBuy, tx.Order.OrderType, tx.Order.Quantity, tx.Order.StockPrice)
+			mh.UpdateStockOrder(tx.Order) // to update parentID as well. Optimize later.
 		} else if tx.IsParent {
 			// Update stock transaction status to completed
-			mh.UpdateStockOrderStatus(tx.Order.UserName, tx.Order.StockTxID, tx.Order.OrderStatus)
+			mh.UpdateStockOrder(tx.Order)
 		} else {
 			tx.Order.StockPrice = tx.PriceTx
 			mh.UpdateStockOrder(tx.Order)
