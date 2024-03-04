@@ -154,6 +154,8 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 					lowestSellTx.CostTotalTx += sellQuantityRemaining * lowestSellTx.Order.StockPrice
 					lowestSellTx.Order.OrderStatus = "COMPLETED"
 					stockTxCommitQueue = append(stockTxCommitQueue, lowestSellTx)
+
+					buyQuantityRemaining -= sellQuantityRemaining
 				} else { // buyQuantityRemaining < sellQuantityRemaining
 					var buyChildTx = createChildTx(&buyTx, buyQuantityRemaining, lowestSellTx.Order.StockPrice)
 					stockTxCommitQueue = append(stockTxCommitQueue, buyChildTx)
@@ -161,9 +163,10 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 					lowestSellTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
 					var sellChildTx = createChildTx(&lowestSellTx, buyQuantityRemaining, lowestSellTx.Order.StockPrice)
 					stockTxCommitQueue = append(stockTxCommitQueue, sellChildTx)
+
+					buyQuantityRemaining = 0
 				}
 			}
-			buyQuantityRemaining -= sellQuantityRemaining
 		}
 
 		buyTx.QuantityTx = buyTx.Order.Quantity - buyQuantityRemaining
@@ -231,6 +234,8 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 					highestBuyTx.CostTotalTx += buyQuantityRemaining * highestBuyTx.Order.StockPrice
 					highestBuyTx.Order.OrderStatus = "COMPLETED"
 					stockTxCommitQueue = append(stockTxCommitQueue, highestBuyTx)
+
+					sellQuantityRemaining -= buyQuantityRemaining
 				} else { // sellQuantityRemaining < buyQuantityRemaining
 					var sellChildTx = createChildTx(&sellTx, sellQuantityRemaining, highestBuyTx.Order.StockPrice)
 					stockTxCommitQueue = append(stockTxCommitQueue, sellChildTx)
@@ -238,9 +243,10 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 					highestBuyTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
 					var buyChildTx = createChildTx(&highestBuyTx, sellQuantityRemaining, highestBuyTx.Order.StockPrice)
 					stockTxCommitQueue = append(stockTxCommitQueue, buyChildTx)
+
+					sellQuantityRemaining = 0
 				}
 			}
-			sellQuantityRemaining -= buyQuantityRemaining
 		}
 
 		sellTx.QuantityTx = sellTx.Order.Quantity - sellQuantityRemaining
