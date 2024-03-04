@@ -23,7 +23,7 @@ func (mh *mongoHandler) CreateStock(stockName string) (models.StockCreated, erro
 	stock := models.StockCreated{
 		ID:           stockID,
 		StockName:    stockName,
-		CurrentPrice: 0.0, // initial stock price is 0
+		CurrentPrice: 0, // initial stock price is 0
 	}
 	// todo: create stock in db
 	collection := mh.client.Database("day-trading-app").Collection("stocks")
@@ -39,10 +39,15 @@ func (mh *mongoHandler) AddStockToUser(userName string, stockID string, quantity
 	collection := mh.client.Database("day-trading-app").Collection("users")
 
 	//test use only:
-	//_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": "VanguardETF"}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": "googleStockId", "quantity": 550}}})
+	//fmt.Println("USERNAME: ", userName)
+	//_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": "TESTonPOSTMAN_after"}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": "googleStockId", "quantity": 550}}})
 
-	//Uncomment this line and comment the above line for production
-	_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": userName}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": stockID, "quantity": quantity}}})
+	//bandaid fix for SINGLE USER TESTING
+	var user models.User
+	err := collection.FindOneAndUpdate(context.Background(), bson.M{}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": stockID, "quantity": quantity}}}).Decode(&user)
+
+	//Uncomment line below and comment the above line for MULTI USER TESTING
+	//_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": userName}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": stockID, "quantity": quantity}}})
 	if err != nil {
 		return err
 	}
