@@ -35,7 +35,7 @@ type Database interface {
 	GetStockTransactions() ([]models.StockTransaction, error)
 	GetStockPrices() ([]models.StockPrice, error)
 	PlaceStockOrder(userName string, stockID string, isBuy bool, orderType string, quantity int, price int) error
-	UpdateStockOrderStatus(userName string, stockTxID string, orderStatus string) error //for the matching engine to update the status of the order
+	UpdateStockOrder(models.StockTransaction) error //for the matching engine to update the status of the order
 	CancelStockTransaction(userName string, stockTxID string) error
 
 	// wallet

@@ -31,6 +31,8 @@ func GetMongoHandler() *mongoHandler {
 			}
 			handler = &mongoHandler{}
 			handler.client = client
+			//Test USE ONLY
+			//handler.DeleteStockTransaction("teslaStockTxId6d6a394c-d62b-412d-b9ce-cf9e38e5ae8b")
 		} else {
 			fmt.Println("Mongo single instance already created.")
 		}

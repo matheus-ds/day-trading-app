@@ -154,7 +154,7 @@ func (mh *mongoHandler) PlaceStockOrder(userName string, stockID string, isBuy b
 	transaction := models.StockTransaction{
 		UserName:        userName,
 		StockTxID:       stockTxID,
-		ParentStockTxID: nil, // ParentStockTxID is nil for the first transaction but how do we handle it for subsequent transactions?
+		ParentStockTxID: nil, // ParentStockTxID is nil for the first transaction
 		StockID:         stockID,
 		WalletTxID:      walletTxID,    // WalletTxID
 		OrderStatus:     "IN_PROGRESS", // initial status of the order is "IN_PROGRESS" needs to be updated to "COMPLETED" or "CANCELLED" later
@@ -173,17 +173,18 @@ func (mh *mongoHandler) PlaceStockOrder(userName string, stockID string, isBuy b
 	return nil
 }
 
-// NOT TESTED
-func (mh *mongoHandler) UpdateStockOrderStatus(userName string, stockTxID string, orderStatus string) error {
+// Tested
+func (mh *mongoHandler) UpdateStockOrder(models.StockTransaction) error {
 	// UpdateStockOrder updates the status of a stock transaction with the given stockTxID to have the status "COMPLETED" or "PARTIALLY_FULFILLED"
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
-	// Update the stock transaction with the given stockTxID to have the status "COMPLETED" or "PARTIALLY_FULFILLED"
-	_, err := collection.UpdateOne(context.Background(), bson.M{"stock_tx_id": stockTxID}, bson.M{"$set": bson.M{"order_status": orderStatus}})
+	// update the stock transaction by stockTxID and replace it with models.StockTransaction
+
+	var stockTransaction models.StockTransaction
+	_, err := collection.ReplaceOne(context.Background(), bson.M{"stock_tx_id": stockTransaction.StockTxID}, stockTransaction)
 	if err != nil {
 		return err
 	}
 	return nil
-
 }
 
 // TESTED
@@ -208,7 +209,7 @@ func (mh *mongoHandler) CancelStockTransaction(userName string, stockTxID string
 	return nil
 }
 
-// NOT TESTED.
+// TESTED
 func (mh *mongoHandler) DeleteStockTransaction(stockTxID string) error {
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 
