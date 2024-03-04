@@ -44,12 +44,25 @@ func executeBuy(tx models.StockMatch) {
 		// Delete wallet transaction
 		mh.DeleteWalletTransaction(tx.Order.UserName, tx.Order.WalletTxID)
 
+		if tx.Order.OrderType == "MARKET" && !tx.IsParent {
+			tx.Order.StockPrice = tx.PriceTx
+			tx.Order.Quantity = tx.QuantityTx
+			mh.UpdateStockOrder(tx.Order)
+		}
+
 	} else if tx.Order.OrderStatus == "COMPLETED" {
 		// Add stock quantity to user portfolio
 		mh.AddStockToUser(tx.Order.UserName, tx.Order.StockID, tx.Order.Quantity)
 
-		// Update stock transaction status to completed
-		mh.UpdateStockOrderStatus(tx.Order.UserName, tx.Order.StockTxID, tx.Order.OrderStatus)
+		if tx.Order.ParentStockTxID != nil { // child
+			mh.AddStockTransaction(tx.Order)
+		} else if tx.IsParent {
+			// Update stock transaction status to completed
+			mh.UpdateStockOrderStatus(tx.Order.UserName, tx.Order.StockTxID, tx.Order.OrderStatus)
+		} else {
+			tx.Order.StockPrice = tx.PriceTx
+			mh.UpdateStockOrder(tx.Order)
+		}
 
 	} else if tx.Order.OrderStatus == "" {
 		// Error: empty string
@@ -70,16 +83,29 @@ func executeSell(tx models.StockMatch) {
 		// Add remaining stock quantity back to user portfolio (remaining = Order.Quantity - QuantityTx)
 		mh.AddStockToUser(tx.Order.UserName, tx.Order.StockID, tx.Order.Quantity-tx.QuantityTx)
 
-	} else if tx.Order.OrderStatus == "COMPLETED" {
-		// Update stock transaction to completed
-		mh.UpdateStockOrderStatus(tx.Order.UserName, tx.Order.StockTxID, tx.Order.OrderStatus)
+		if tx.Order.OrderType == "MARKET" && !tx.IsParent {
+			tx.Order.StockPrice = tx.PriceTx
+			tx.Order.Quantity = tx.QuantityTx
+			mh.UpdateStockOrder(tx.Order)
+		}
 
+	} else if tx.Order.OrderStatus == "COMPLETED" {
 		// Add money to wallet
 		walletBalance, _ := mh.GetWalletBalance(tx.Order.UserName)
 		mh.SetWalletBalance(tx.Order.UserName, walletBalance+tx.CostTotalTx)
 
 		// Insert wallet transaction
 		mh.DeleteWalletTransaction(tx.Order.UserName, tx.Order.WalletTxID)
+
+		if tx.Order.ParentStockTxID != nil { // child
+			mh.AddStockTransaction(tx.Order)
+		} else if tx.IsParent {
+			// Update stock transaction status to completed
+			mh.UpdateStockOrderStatus(tx.Order.UserName, tx.Order.StockTxID, tx.Order.OrderStatus)
+		} else {
+			tx.Order.StockPrice = tx.PriceTx
+			mh.UpdateStockOrder(tx.Order)
+		}
 
 	} else if tx.Order.OrderStatus == "" {
 		// Error: empty string
