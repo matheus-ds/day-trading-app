@@ -13,8 +13,6 @@ import (
 	"github.com/ryszard/goskiplist/skiplist"
 )
 
-// TODO: Optimize for space. Currently stores whole transactions, as both keys and values. Smaller keys is easy.
-
 type orderbook struct {
 	buys  *skiplist.SkipList
 	sells *skiplist.SkipList
@@ -28,12 +26,12 @@ var stockTxCommitQueue []models.StockMatch
 
 // Prioritize buys by highest price 1st, then earliest time 2nd.
 func buyIsLowerPriorityThan(l, r interface{}) bool {
-	ll := l.(models.StockTransaction)
-	rr := r.(models.StockTransaction)
-	if ll.StockPrice > rr.StockPrice {
+	ll := l.(string)
+	rr := r.(string)
+	if ll > rr {
 		return true
-	} else if ll.StockPrice == rr.StockPrice {
-		return ll.TimeStamp < rr.TimeStamp
+	} else if ll == rr {
+		return ll < rr
 	} else {
 		return false
 	}
@@ -41,12 +39,12 @@ func buyIsLowerPriorityThan(l, r interface{}) bool {
 
 // Prioritize sells by lowest price 1st, then earliest time 2nd.
 func sellIsLowerPriorityThan(l, r interface{}) bool {
-	ll := l.(models.StockTransaction)
-	rr := r.(models.StockTransaction)
-	if ll.StockPrice < rr.StockPrice {
+	ll := l.(string)
+	rr := r.(string)
+	if ll < rr {
 		return true
-	} else if ll.StockPrice == rr.StockPrice {
-		return ll.TimeStamp < rr.TimeStamp
+	} else if ll == rr {
+		return ll < rr
 	} else {
 		return false
 	}
@@ -72,7 +70,7 @@ func getOrderbook(tx models.StockTransaction) orderbook {
 func createChildTx(parentTx *models.StockMatch, quantityTraded int, priceTraded int) models.StockMatch {
 	var childTx = *parentTx
 	childTx.Order.ParentStockTxID = &parentTx.Order.StockTxID
-	childTx.Order.StockTxID = strings.ToLower(childTx.Order.StockID) + "StockTxId" + uuid.New().String() // todo fix?
+	childTx.Order.StockTxID = strings.ToLower(childTx.Order.StockTxID) + "StockTxId" + uuid.New().String() // todo fix?
 	childTx.Order.StockPrice = priceTraded
 	childTx.PriceTx = priceTraded
 	childTx.Order.Quantity = quantityTraded
@@ -103,12 +101,12 @@ func Match(order models.StockTransaction) {
 
 // matchBuy() and matchSell() are basically mirrors of each other, with "buy" and "sell" swapped.
 // todo Specification unclear as to what price that two matched price limit-orders with different prices should trade at.
-// todo   So for now we're taking the oldest limit-order's price.
+// todo   So for now we're taking the older limit-order's price.
 
 func (book orderbook) matchBuy(buyTx models.StockMatch) {
 	if book.sells.Len() == 0 {
 		if buyTx.Order.OrderType == "LIMIT" {
-			book.buys.Set(buyTx.Order, buyTx)
+			book.buys.Set(buyTx.Order.StockTxID, buyTx)
 		} else { // "MARKET"
 			stockTxCommitQueue = append(stockTxCommitQueue, buyTx)
 		}
@@ -178,7 +176,7 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 		}
 
 		if buyTx.Order.OrderType == "LIMIT" {
-			book.buys.Set(buyTx.Order, buyTx)
+			book.buys.Set(buyTx.Order.StockTxID, buyTx)
 		}
 
 		stockTxCommitQueue = append(stockTxCommitQueue, buyTx)
@@ -188,7 +186,7 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 func (book orderbook) matchSell(sellTx models.StockMatch) {
 	if book.buys.Len() == 0 {
 		if sellTx.Order.OrderType == "LIMIT" {
-			book.sells.Set(sellTx.Order, sellTx)
+			book.sells.Set(sellTx.Order.StockTxID, sellTx)
 		} else { // "MARKET"
 			stockTxCommitQueue = append(stockTxCommitQueue, sellTx)
 		}
@@ -258,7 +256,7 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 		}
 
 		if sellTx.Order.OrderType == "LIMIT" {
-			book.sells.Set(sellTx.Order, sellTx)
+			book.sells.Set(sellTx.Order.StockTxID, sellTx)
 		}
 
 		stockTxCommitQueue = append(stockTxCommitQueue, sellTx)
@@ -285,9 +283,9 @@ func CancelOrder(order models.StockTransaction) (wasCancelled bool) {
 // cancelBuyOrder() and cancelSellOrder() are mirrors of each other, with "buy" and "sell" swapped.
 
 func (book orderbook) cancelBuyOrder(order models.StockTransaction) (wasFound bool) {
-	victimTx, wasFound := book.buys.Get(order)
+	victimTx, wasFound := book.buys.Get(order.StockTxID)
 	if wasFound {
-		book.buys.Delete(order)
+		book.buys.Delete(order.StockTxID)
 		victimTx := victimTx.(models.StockMatch)
 		victimTx.Killed = true
 		stockTxCommitQueue = append(stockTxCommitQueue, victimTx)
@@ -296,9 +294,9 @@ func (book orderbook) cancelBuyOrder(order models.StockTransaction) (wasFound bo
 }
 
 func (book orderbook) cancelSellOrder(order models.StockTransaction) (wasFound bool) {
-	victimTx, wasFound := book.sells.Get(order)
+	victimTx, wasFound := book.sells.Get(order.StockTxID)
 	if wasFound {
-		book.sells.Delete(order)
+		book.sells.Delete(order.StockTxID)
 		victimTx := victimTx.(models.StockMatch)
 		victimTx.Killed = true
 		stockTxCommitQueue = append(stockTxCommitQueue, victimTx)
