@@ -35,13 +35,15 @@ type Database interface {
 	GetStockTransactions() ([]models.StockTransaction, error)
 	GetStockPrices() ([]models.StockPrice, error)
 	PlaceStockOrder(userName string, stockID string, isBuy bool, orderType string, quantity int, price int) error
-	UpdateStockOrderStatus(userName string, stockTxID string, orderStatus string) error //for the matching engine to update the status of the order
+	UpdateStockOrder(models.StockTransaction) error //for the matching engine to update the status of the order
 	CancelStockTransaction(userName string, stockTxID string) error
 
 	// wallet
 	SetWalletBalance(userName string, newBalance int) error
 	GetWalletBalance(userName string) (int, error)
 	GetWalletTransactions(userName string) ([]models.WalletTransaction, error)
+	AddWalletTransaction(userName string, walletTxID string, stockID string, is_debit bool, amount int, timeStamp int64) error
+	DeleteWalletTransaction(userName string, walletTxID string) error
 }
 
 type serviceImpl struct {

@@ -31,6 +31,9 @@ func GetMongoHandler() *mongoHandler {
 			}
 			handler = &mongoHandler{}
 			handler.client = client
+			//Test USE ONLY
+			//handler.AddWalletTransaction("TESTonPOSTMAN_after", "testWalletTxId", "teststockID", true, 888, 8888)
+			//handler.DeleteWalletTransaction("TESTonPOSTMAN_after", "testWalletTxId")
 		} else {
 			fmt.Println("Mongo single instance already created.")
 		}

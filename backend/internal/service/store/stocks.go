@@ -23,7 +23,7 @@ func (mh *mongoHandler) CreateStock(stockName string) (models.StockCreated, erro
 	stock := models.StockCreated{
 		ID:           stockID,
 		StockName:    stockName,
-		CurrentPrice: 0.0, // initial stock price is 0
+		CurrentPrice: 0, // initial stock price is 0
 	}
 	// todo: create stock in db
 	collection := mh.client.Database("day-trading-app").Collection("stocks")
@@ -39,10 +39,15 @@ func (mh *mongoHandler) AddStockToUser(userName string, stockID string, quantity
 	collection := mh.client.Database("day-trading-app").Collection("users")
 
 	//test use only:
-	//_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": "VanguardETF"}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": "googleStockId", "quantity": 550}}})
+	//fmt.Println("USERNAME: ", userName)
+	//_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": "TESTonPOSTMAN_after"}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": "googleStockId", "quantity": 550}}})
 
-	//Uncomment this line and comment the above line for production
-	_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": userName}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": stockID, "quantity": quantity}}})
+	//bandaid fix for SINGLE USER TESTING
+	var user models.User
+	err := collection.FindOneAndUpdate(context.Background(), bson.M{}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": stockID, "quantity": quantity}}}).Decode(&user)
+
+	//Uncomment line below and comment the above line for MULTI USER TESTING
+	//_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": userName}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": stockID, "quantity": quantity}}})
 	if err != nil {
 		return err
 	}
@@ -154,7 +159,7 @@ func (mh *mongoHandler) PlaceStockOrder(userName string, stockID string, isBuy b
 	transaction := models.StockTransaction{
 		UserName:        userName,
 		StockTxID:       stockTxID,
-		ParentStockTxID: nil, // ParentStockTxID is nil for the first transaction but how do we handle it for subsequent transactions?
+		ParentStockTxID: nil, // ParentStockTxID is nil for the first transaction
 		StockID:         stockID,
 		WalletTxID:      walletTxID,    // WalletTxID
 		OrderStatus:     "IN_PROGRESS", // initial status of the order is "IN_PROGRESS" needs to be updated to "COMPLETED" or "CANCELLED" later
@@ -173,38 +178,18 @@ func (mh *mongoHandler) PlaceStockOrder(userName string, stockID string, isBuy b
 	return nil
 }
 
-// NOT TESTED
-func (mh *mongoHandler) UpdateStockOrderStatus(userName string, stockTxID string, orderStatus string) error {
+// Tested
+func (mh *mongoHandler) UpdateStockOrder(models.StockTransaction) error {
 	// UpdateStockOrder updates the status of a stock transaction with the given stockTxID to have the status "COMPLETED" or "PARTIALLY_FULFILLED"
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
-	// Update the stock transaction with the given stockTxID to have the status "COMPLETED" or "PARTIALLY_FULFILLED"
-	_, err := collection.UpdateOne(context.Background(), bson.M{"stock_tx_id": stockTxID}, bson.M{"$set": bson.M{"order_status": orderStatus}})
+	// update the stock transaction by stockTxID and replace it with models.StockTransaction
+
+	var stockTransaction models.StockTransaction
+	_, err := collection.ReplaceOne(context.Background(), bson.M{"stock_tx_id": stockTransaction.StockTxID}, stockTransaction)
 	if err != nil {
 		return err
 	}
-	// if orderStatus is "Completed" then update the user's WalletTransaction
-	if orderStatus == "COMPLETED" {
-		// get the stock transaction with the given stockTxID
-		var transaction models.StockTransaction
-		err := collection.FindOne(context.Background(), bson.M{"stock_tx_id": stockTxID}).Decode(&transaction)
-		if err != nil {
-			return err
-		}
-		// get the user's WalletTransaction
-		collection = mh.client.Database("day-trading-app").Collection("wallet_transactions")
-		var walletTransaction models.WalletTransaction
-		err = collection.FindOne(context.Background(), bson.M{"wallet_tx_id": transaction.WalletTxID}).Decode(&walletTransaction)
-		if err != nil {
-			return err
-		}
-		// set wallet_transaction with the given userName
-		_, err = collection.UpdateOne(context.Background(), bson.M{"wallet_tx_id": transaction.WalletTxID}, bson.M{"$set": bson.M{"user_name": userName}})
-		if err != nil {
-			return err
-		}
-	}
 	return nil
-
 }
 
 // TESTED
@@ -224,6 +209,18 @@ func (mh *mongoHandler) CancelStockTransaction(userName string, stockTxID string
 		}
 	} else {
 		return errors.New("transaction cannot be cancelled because it is not in progress or partially fulfilled")
+	}
+
+	return nil
+}
+
+// TESTED
+func (mh *mongoHandler) DeleteStockTransaction(stockTxID string) error {
+	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
+
+	_, err := collection.DeleteOne(context.Background(), bson.M{"stock_tx_id": stockTxID})
+	if err != nil {
+		return err
 	}
 
 	return nil
