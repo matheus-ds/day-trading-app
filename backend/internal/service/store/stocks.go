@@ -16,7 +16,7 @@ import (
 // var ctx, cancel = context.WithTimeout(context.Background(), 20*time.Second)
 
 // Tested
-func (mh *mongoHandler) CreateStock(stockName string) (models.StockCreated, error) {
+func (mh *MongoHandler) CreateStock(stockName string) (models.StockCreated, error) {
 	// generate stock id by appending string "StockId" to stockName while making stockname all lowercase
 	// stock_name:"Google", stock_id: <googleStockId>
 	stockID := strings.ToLower(stockName) + "StockId" + uuid.New().String()
@@ -35,7 +35,7 @@ func (mh *mongoHandler) CreateStock(stockName string) (models.StockCreated, erro
 }
 
 // Tested
-func (mh *mongoHandler) AddStockToUser(userName string, stockID string, quantity int) error {
+func (mh *MongoHandler) AddStockToUser(userName, stockID, stockName string, quantity int) error {
 	collection := mh.client.Database("day-trading-app").Collection("users")
 
 	//test use only:
@@ -55,7 +55,7 @@ func (mh *mongoHandler) AddStockToUser(userName string, stockID string, quantity
 }
 
 // Tested
-func (mh *mongoHandler) GetStockPortfolio(userName string) ([]models.PortfolioItem, error) {
+func (mh *MongoHandler) GetStockPortfolio(userName string) ([]models.PortfolioItem, error) {
 	// Access the collection where user portfolio data is stored
 	collection := mh.client.Database("day-trading-app").Collection("users")
 
@@ -72,7 +72,7 @@ func (mh *mongoHandler) GetStockPortfolio(userName string) ([]models.PortfolioIt
 }
 
 // Tested
-func (mh *mongoHandler) GetStockTransactions() ([]models.StockTransaction, error) {
+func (mh *MongoHandler) GetStockTransactions() ([]models.StockTransaction, error) {
 	// Access the collection where user portfolio data is stored
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 
@@ -102,7 +102,7 @@ func (mh *mongoHandler) GetStockTransactions() ([]models.StockTransaction, error
 }
 
 // Tested
-func (mh *mongoHandler) GetStockPrices() ([]models.StockPrice, error) {
+func (mh *MongoHandler) GetStockPrices() ([]models.StockPrice, error) {
 	// Access the collection where stock price data is stored
 	collection := mh.client.Database("day-trading-app").Collection("stocks")
 
@@ -131,7 +131,7 @@ func (mh *mongoHandler) GetStockPrices() ([]models.StockPrice, error) {
 }
 
 // Tested
-func (mh *mongoHandler) PlaceStockOrder(userName string, stockID string, isBuy bool, orderType string, quantity int, price int) error {
+func (mh *MongoHandler) PlaceStockOrder(userName string, stockID string, isBuy bool, orderType string, quantity int, price int) error {
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 	// add string "Tx" inbetween stockID's name, for example, "googleStockId" becomes "googleStockTxId"
 	index := strings.Index(stockID, "Stock")
@@ -179,7 +179,7 @@ func (mh *mongoHandler) PlaceStockOrder(userName string, stockID string, isBuy b
 }
 
 // Tested
-func (mh *mongoHandler) UpdateStockOrder(models.StockTransaction) error {
+func (mh *MongoHandler) UpdateStockOrder(models.StockTransaction) error {
 	// UpdateStockOrder updates the status of a stock transaction with the given stockTxID to have the status "COMPLETED" or "PARTIALLY_FULFILLED"
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 	// update the stock transaction by stockTxID and replace it with models.StockTransaction
@@ -193,7 +193,7 @@ func (mh *mongoHandler) UpdateStockOrder(models.StockTransaction) error {
 }
 
 // TESTED
-func (mh *mongoHandler) CancelStockTransaction(userName string, stockTxID string) error {
+func (mh *MongoHandler) CancelStockTransaction(userName string, stockTxID string) error {
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 	// Update the stock transaction with the given stockTxID to have the status "CANCELLED"
 	// need to check first if transaction is IN_PROGRESS or PARTIALLY_FULFILLED and abort if not. Because some transactions might be too late to cancel.
@@ -215,7 +215,7 @@ func (mh *mongoHandler) CancelStockTransaction(userName string, stockTxID string
 }
 
 // TESTED
-func (mh *mongoHandler) DeleteStockTransaction(stockTxID string) error {
+func (mh *MongoHandler) DeleteStockTransaction(stockTxID string) error {
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 
 	_, err := collection.DeleteOne(context.Background(), bson.M{"stock_tx_id": stockTxID})

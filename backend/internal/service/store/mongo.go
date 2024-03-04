@@ -11,13 +11,13 @@ import (
 
 var lock = &sync.Mutex{}
 
-type mongoHandler struct {
+type MongoHandler struct {
 	client *mongo.Client
 }
 
-var handler *mongoHandler
+var handler *MongoHandler
 
-func GetMongoHandler() *mongoHandler {
+func GetMongoHandler() *MongoHandler {
 	if handler == nil {
 		lock.Lock()
 		defer lock.Unlock()
@@ -29,7 +29,7 @@ func GetMongoHandler() *mongoHandler {
 			if err != nil {
 				fmt.Println("Error connecting to mongo: ", err)
 			}
-			handler = &mongoHandler{}
+			handler = &MongoHandler{}
 			handler.client = client
 			//Test USE ONLY
 			//handler.AddWalletTransaction("TESTonPOSTMAN_after", "testWalletTxId", "teststockID", true, 888, 8888)

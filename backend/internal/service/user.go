@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"strings"
 
 	"day-trading-app/backend/internal/service/token"
@@ -35,7 +36,7 @@ func (s serviceImpl) RegisterUser(userName, password, name string) error {
 
 	_, err := s.db.GetUserByUserName(userName)
 	if err == nil {
-		return err // user already exists
+		return errors.New("user already exists")
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)

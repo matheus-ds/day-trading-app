@@ -14,7 +14,7 @@ func (s serviceImpl) AddStockToUser(userName string, stockID string, quantity in
 	if quantity <= 0 {
 		return errors.New("invalid quantity")
 	}
-	stkExists, err := s.doesStockExist(stockID)
+	stk, stkExists, err := s.doesStockExist(stockID)
 	if err != nil {
 		return err
 	}
@@ -22,14 +22,7 @@ func (s serviceImpl) AddStockToUser(userName string, stockID string, quantity in
 		return errors.New("stock does not exist")
 	}
 
-	// check if user already has that stock, if so, update the quantity
-	stock, err := s.getStockFromUser(userName, stockID)
-	if err != nil {
-		// user does not have that stock, add it
-		return s.db.AddStockToUser(userName, stockID, quantity)
-	}
-
-	return s.db.AddStockToUser(userName, stockID, quantity+stock.Quantity)
+	return s.db.AddStockToUser(userName, stockID, stk.StockName, quantity)
 }
 
 func (s serviceImpl) GetStockPortfolio(userName string) ([]models.PortfolioItem, error) {
@@ -108,17 +101,18 @@ func (s serviceImpl) CancelStockTransaction(userName string, stockTxID string) e
 	return errors.New("stock transaction not found for given user")
 }
 
-func (s serviceImpl) doesStockExist(stockID string) (bool, error) {
+func (s serviceImpl) doesStockExist(stockID string) (models.StockPrice, bool, error) {
+	stk := models.StockPrice{}
 	stocks, err := s.db.GetStockPrices()
 	if err != nil {
-		return false, err
+		return stk, false, err
 	}
 	for _, stock := range stocks {
 		if stock.StockID == stockID {
-			return true, nil
+			return stock, true, nil
 		}
 	}
-	return false, nil
+	return stk, false, nil
 }
 
 func (s serviceImpl) getStockFromUser(userName, stockID string) (models.PortfolioItem, error) {
