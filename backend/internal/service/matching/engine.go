@@ -22,7 +22,6 @@ type orderbook struct {
 type orderbooks map[string]orderbook
 
 var bookMap = make(orderbooks)
-var stockTxCommitQueue []models.StockMatch
 
 // Define orderings for orderbooks. Sort first by price, then if equal price, by time.
 
@@ -92,25 +91,26 @@ func Match(order models.StockTransaction) {
 
 	var tx = models.StockMatch{Order: order, QuantityTx: 0, PriceTx: 0, CostTotalTx: 0, IsParent: false, Killed: false}
 
+	var txCommitQueue []models.StockMatch
 	if order.IsBuy {
-		book.matchBuy(tx)
+		book.matchBuy(tx, txCommitQueue)
 	} else {
-		book.matchSell(tx)
+		book.matchSell(tx, txCommitQueue)
 	}
 
-	ExecuteOrders(stockTxCommitQueue)
+	ExecuteOrders(txCommitQueue)
 }
 
 // matchBuy() and matchSell() are basically mirrors of each other, with "buy" and "sell" swapped.
 // todo Specification unclear as to what price that two matched price limit-orders with different prices should trade at.
 // todo   So for now we're taking the oldest limit-order's price.
 
-func (book orderbook) matchBuy(buyTx models.StockMatch) {
+func (book orderbook) matchBuy(buyTx models.StockMatch, txCommitQueue []models.StockMatch) {
 	if book.sells.Len() == 0 {
 		if buyTx.Order.OrderType == "LIMIT" {
 			book.buys.Set(buyTx.Order, buyTx)
 		} else { // "MARKET"
-			stockTxCommitQueue = append(stockTxCommitQueue, buyTx)
+			txCommitQueue = append(txCommitQueue, buyTx)
 		}
 
 	} else {
@@ -126,7 +126,7 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 
 			if isExpired(lowestSellTx) {
 				book.sells.Delete(lowestSellTx.Order)
-				stockTxCommitQueue = append(stockTxCommitQueue, lowestSellTx)
+				txCommitQueue = append(txCommitQueue, lowestSellTx)
 			} else {
 				if (buyTx.Order.OrderType == "LIMIT") && (buyTx.Order.StockPrice < lowestSellTx.Order.StockPrice) {
 					break
@@ -139,7 +139,7 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 					} else {
 						if buyTx.Order.OrderType == "MARKET" && !buyTx.IsParent && sellsHasNext {
 							var buyChildTx = createChildTx(&buyTx, sellQuantityRemaining, lowestSellTx.Order.StockPrice)
-							stockTxCommitQueue = append(stockTxCommitQueue, buyChildTx)
+							txCommitQueue = append(txCommitQueue, buyChildTx)
 						} else {
 							buyTx.PriceTx = lowestSellTx.Order.StockPrice
 							buyTx.CostTotalTx += buyTx.Order.Quantity * lowestSellTx.Order.StockPrice
@@ -153,16 +153,16 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 					lowestSellTx.QuantityTx = lowestSellTx.Order.Quantity - sellQuantityRemaining
 					lowestSellTx.CostTotalTx += sellQuantityRemaining * lowestSellTx.Order.StockPrice
 					lowestSellTx.Order.OrderStatus = "COMPLETED"
-					stockTxCommitQueue = append(stockTxCommitQueue, lowestSellTx)
+					txCommitQueue = append(txCommitQueue, lowestSellTx)
 
 					buyQuantityRemaining -= sellQuantityRemaining
 				} else { // buyQuantityRemaining < sellQuantityRemaining
 					var buyChildTx = createChildTx(&buyTx, buyQuantityRemaining, lowestSellTx.Order.StockPrice)
-					stockTxCommitQueue = append(stockTxCommitQueue, buyChildTx)
+					txCommitQueue = append(txCommitQueue, buyChildTx)
 
 					lowestSellTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
 					var sellChildTx = createChildTx(&lowestSellTx, buyQuantityRemaining, lowestSellTx.Order.StockPrice)
-					stockTxCommitQueue = append(stockTxCommitQueue, sellChildTx)
+					txCommitQueue = append(txCommitQueue, sellChildTx)
 
 					buyQuantityRemaining = 0
 				}
@@ -181,16 +181,16 @@ func (book orderbook) matchBuy(buyTx models.StockMatch) {
 			book.buys.Set(buyTx.Order, buyTx)
 		}
 
-		stockTxCommitQueue = append(stockTxCommitQueue, buyTx)
+		txCommitQueue = append(txCommitQueue, buyTx)
 	}
 }
 
-func (book orderbook) matchSell(sellTx models.StockMatch) {
+func (book orderbook) matchSell(sellTx models.StockMatch, txCommitQueue []models.StockMatch) {
 	if book.buys.Len() == 0 {
 		if sellTx.Order.OrderType == "LIMIT" {
 			book.sells.Set(sellTx.Order, sellTx)
 		} else { // "MARKET"
-			stockTxCommitQueue = append(stockTxCommitQueue, sellTx)
+			txCommitQueue = append(txCommitQueue, sellTx)
 		}
 
 	} else {
@@ -206,7 +206,7 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 
 			if isExpired(highestBuyTx) {
 				book.buys.Delete(highestBuyTx.Order)
-				stockTxCommitQueue = append(stockTxCommitQueue, highestBuyTx)
+				txCommitQueue = append(txCommitQueue, highestBuyTx)
 			} else {
 				if (sellTx.Order.OrderType == "LIMIT") && (sellTx.Order.StockPrice < highestBuyTx.Order.StockPrice) {
 					break
@@ -219,7 +219,7 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 					} else {
 						if sellTx.Order.OrderType == "MARKET" && !sellTx.IsParent && buysHasNext {
 							var sellChildTx = createChildTx(&sellTx, buyQuantityRemaining, highestBuyTx.Order.StockPrice)
-							stockTxCommitQueue = append(stockTxCommitQueue, sellChildTx)
+							txCommitQueue = append(txCommitQueue, sellChildTx)
 						} else {
 							sellTx.PriceTx = highestBuyTx.Order.StockPrice
 							sellTx.CostTotalTx += sellTx.Order.Quantity * highestBuyTx.Order.StockPrice
@@ -233,16 +233,16 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 					highestBuyTx.QuantityTx = highestBuyTx.Order.Quantity - buyQuantityRemaining
 					highestBuyTx.CostTotalTx += buyQuantityRemaining * highestBuyTx.Order.StockPrice
 					highestBuyTx.Order.OrderStatus = "COMPLETED"
-					stockTxCommitQueue = append(stockTxCommitQueue, highestBuyTx)
+					txCommitQueue = append(txCommitQueue, highestBuyTx)
 
 					sellQuantityRemaining -= buyQuantityRemaining
 				} else { // sellQuantityRemaining < buyQuantityRemaining
 					var sellChildTx = createChildTx(&sellTx, sellQuantityRemaining, highestBuyTx.Order.StockPrice)
-					stockTxCommitQueue = append(stockTxCommitQueue, sellChildTx)
+					txCommitQueue = append(txCommitQueue, sellChildTx)
 
 					highestBuyTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
 					var buyChildTx = createChildTx(&highestBuyTx, sellQuantityRemaining, highestBuyTx.Order.StockPrice)
-					stockTxCommitQueue = append(stockTxCommitQueue, buyChildTx)
+					txCommitQueue = append(txCommitQueue, buyChildTx)
 
 					sellQuantityRemaining = 0
 				}
@@ -261,7 +261,7 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 			book.sells.Set(sellTx.Order, sellTx)
 		}
 
-		stockTxCommitQueue = append(stockTxCommitQueue, sellTx)
+		txCommitQueue = append(txCommitQueue, sellTx)
 	}
 }
 
@@ -269,45 +269,48 @@ func (book orderbook) matchSell(sellTx models.StockMatch) {
 // If found, the matching transaction is enqueued. Basically a deliberate premature expiration.
 func CancelOrder(order models.StockTransaction) (wasCancelled bool) {
 	var book = bookMap[order.StockID]
+	var txCommitQueue []models.StockMatch
 	if book.buys != nil {
 		if order.IsBuy {
-			wasCancelled = book.cancelBuyOrder(order)
+			wasCancelled = book.cancelBuyOrder(order, txCommitQueue)
 		} else {
-			wasCancelled = book.cancelSellOrder(order)
+			wasCancelled = book.cancelSellOrder(order, txCommitQueue)
 		}
 	}
 
-	ExecuteOrders(stockTxCommitQueue)
+	ExecuteOrders(txCommitQueue)
 
 	return wasCancelled
 }
 
 // cancelBuyOrder() and cancelSellOrder() are mirrors of each other, with "buy" and "sell" swapped.
 
-func (book orderbook) cancelBuyOrder(order models.StockTransaction) (wasFound bool) {
+func (book orderbook) cancelBuyOrder(order models.StockTransaction, txCommitQueue []models.StockMatch) (wasFound bool) {
 	victimTx, wasFound := book.buys.Get(order)
 	if wasFound {
 		book.buys.Delete(order)
 		victimTx := victimTx.(models.StockMatch)
 		victimTx.Killed = true
-		stockTxCommitQueue = append(stockTxCommitQueue, victimTx)
+		txCommitQueue = append(txCommitQueue, victimTx)
 	}
 	return wasFound
 }
 
-func (book orderbook) cancelSellOrder(order models.StockTransaction) (wasFound bool) {
+func (book orderbook) cancelSellOrder(order models.StockTransaction, txCommitQueue []models.StockMatch) (wasFound bool) {
 	victimTx, wasFound := book.sells.Get(order)
 	if wasFound {
 		book.sells.Delete(order)
 		victimTx := victimTx.(models.StockMatch)
 		victimTx.Killed = true
-		stockTxCommitQueue = append(stockTxCommitQueue, victimTx)
+		txCommitQueue = append(txCommitQueue, victimTx)
 	}
 	return wasFound
 }
 
 // FlushExpired checks all active transactions, pushing any that are expired.
 func FlushExpired() {
+	var txCommitQueue []models.StockMatch
+
 	for _, book := range bookMap {
 		txIter := book.buys.Iterator()
 		for txIter.Next() {
@@ -315,17 +318,16 @@ func FlushExpired() {
 			if isExpired(tx) {
 				book.sells.Delete(tx.Order)
 				tx.Killed = true
-				stockTxCommitQueue = append(stockTxCommitQueue, tx)
+				txCommitQueue = append(txCommitQueue, tx)
 			}
 		}
-
 		txIter = book.sells.Iterator()
 		for txIter.Next() {
 			tx := txIter.Value().(models.StockMatch)
 			if isExpired(tx) {
 				book.sells.Delete(tx.Order)
 				tx.Killed = true
-				stockTxCommitQueue = append(stockTxCommitQueue, tx)
+				txCommitQueue = append(txCommitQueue, tx)
 			}
 		}
 	}

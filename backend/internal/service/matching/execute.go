@@ -7,8 +7,8 @@ import (
 
 var mh = store.GetMongoHandler()
 
-func ExecuteOrders(stockTxCommitQueue []models.StockMatch) {
-	for _, tx := range stockTxCommitQueue {
+func ExecuteOrders(txCommitQueue []models.StockMatch) {
+	for _, tx := range txCommitQueue {
 		if tx.IsParent && !tx.Killed {
 			// Update stock transaction status
 			mh.UpdateStockOrder(tx.Order)
