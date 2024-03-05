@@ -98,9 +98,7 @@ func Match(order models.StockTransaction) {
 		book.matchSell(tx, &txCommitQueue)
 	}
 
-	bob := 1
-	bob++
-	//ExecuteOrders(txCommitQueue)
+	ExecuteOrders(txCommitQueue)
 }
 
 // matchBuy() and matchSell() are basically mirrors of each other, with "buy" and "sell" swapped.
@@ -333,4 +331,6 @@ func FlushExpired() {
 			}
 		}
 	}
+
+	ExecuteOrders(txCommitQueue)
 }
