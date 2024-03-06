@@ -157,7 +157,7 @@ func (book orderbook) matchBuy(buyTx models.StockMatch, txCommitQueue *[]models.
 
 					buyQuantityRemaining -= sellQuantityRemaining
 				} else { // buyQuantityRemaining < sellQuantityRemaining
-					if buyTx.Order.OrderType == "LIMIT" || buyTx.IsParent {
+					if buyTx.IsParent {
 						var buyChildTx = createChildTx(&buyTx, buyQuantityRemaining, lowestSellTx.Order.StockPrice)
 						*txCommitQueue = append(*txCommitQueue, buyChildTx)
 					} else {
@@ -244,7 +244,7 @@ func (book orderbook) matchSell(sellTx models.StockMatch, txCommitQueue *[]model
 
 					sellQuantityRemaining -= buyQuantityRemaining
 				} else { // sellQuantityRemaining < buyQuantityRemaining
-					if sellTx.Order.OrderType == "LIMIT" || sellTx.IsParent {
+					if sellTx.IsParent {
 						var sellChildTx = createChildTx(&sellTx, sellQuantityRemaining, highestBuyTx.Order.StockPrice)
 						*txCommitQueue = append(*txCommitQueue, sellChildTx)
 					} else {
