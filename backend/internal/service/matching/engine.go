@@ -133,12 +133,17 @@ func (book orderbook) matchBuy(buyTx models.StockMatch, txCommitQueue *[]models.
 				}
 
 				if buyQuantityRemaining >= sellQuantityRemaining {
-					if buyTx.IsParent || !sellsHasNext {
-						var buyChildTx = createChildTx(&buyTx, sellQuantityRemaining, lowestSellTx.Order.StockPrice)
-						*txCommitQueue = append(*txCommitQueue, buyChildTx)
-					} else {
+					if buyTx.Order.Quantity == sellQuantityRemaining {
 						buyTx.PriceTx = lowestSellTx.Order.StockPrice
 						buyTx.CostTotalTx += lowestSellTx.Order.Quantity * lowestSellTx.Order.StockPrice
+					} else {
+						if buyTx.IsParent || sellsHasNext || (!buyTx.IsParent && buyTx.Order.OrderType == "LIMIT") {
+							var buyChildTx = createChildTx(&buyTx, sellQuantityRemaining, lowestSellTx.Order.StockPrice)
+							*txCommitQueue = append(*txCommitQueue, buyChildTx)
+						} else {
+							buyTx.PriceTx = lowestSellTx.Order.StockPrice
+							buyTx.CostTotalTx += lowestSellTx.Order.Quantity * lowestSellTx.Order.StockPrice
+						}
 					}
 
 					book.sells.Delete(lowestSellTx.Order)
@@ -213,12 +218,17 @@ func (book orderbook) matchSell(sellTx models.StockMatch, txCommitQueue *[]model
 				}
 
 				if sellQuantityRemaining >= buyQuantityRemaining {
-					if sellTx.IsParent || !buysHasNext {
-						var sellChildTx = createChildTx(&sellTx, buyQuantityRemaining, highestBuyTx.Order.StockPrice)
-						*txCommitQueue = append(*txCommitQueue, sellChildTx)
-					} else {
+					if sellTx.Order.Quantity == buyQuantityRemaining {
 						sellTx.PriceTx = highestBuyTx.Order.StockPrice
 						sellTx.CostTotalTx += highestBuyTx.Order.Quantity * highestBuyTx.Order.StockPrice
+					} else {
+						if sellTx.IsParent || buysHasNext || (!sellTx.IsParent && sellTx.Order.OrderType == "LIMIT") {
+							var sellChildTx = createChildTx(&sellTx, buyQuantityRemaining, highestBuyTx.Order.StockPrice)
+							*txCommitQueue = append(*txCommitQueue, sellChildTx)
+						} else {
+							sellTx.PriceTx = highestBuyTx.Order.StockPrice
+							sellTx.CostTotalTx += highestBuyTx.Order.Quantity * highestBuyTx.Order.StockPrice
+						}
 					}
 
 					book.buys.Delete(highestBuyTx.Order)
