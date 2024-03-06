@@ -176,7 +176,9 @@ func (book orderbook) matchBuy(buyTx models.StockMatch, txCommitQueue *[]models.
 
 		buyTx.QuantityTx = buyTx.Order.Quantity - buyQuantityRemaining
 
-		if buyQuantityRemaining > 0 {
+		if buyTx.QuantityTx == 0 {
+			//buyTx.Order.OrderStatus = "IN_PROGRESS" // unfulfilled
+		} else if buyQuantityRemaining > 0 {
 			buyTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
 		} else { // = 0
 			buyTx.Order.OrderStatus = "COMPLETED"
@@ -261,7 +263,9 @@ func (book orderbook) matchSell(sellTx models.StockMatch, txCommitQueue *[]model
 
 		sellTx.QuantityTx = sellTx.Order.Quantity - sellQuantityRemaining
 
-		if sellQuantityRemaining > 0 {
+		if sellTx.QuantityTx == 0 {
+			//buyTx.Order.OrderStatus = "IN_PROGRESS" // unfulfilled
+		} else if sellQuantityRemaining > 0 {
 			sellTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
 		} else { // = 0
 			sellTx.Order.OrderStatus = "COMPLETED"
