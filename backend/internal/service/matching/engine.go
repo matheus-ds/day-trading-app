@@ -177,14 +177,14 @@ func (book orderbook) matchBuy(buyTx models.StockMatch, txCommitQueue *[]models.
 		buyTx.QuantityTx = buyTx.Order.Quantity - buyQuantityRemaining
 
 		if buyTx.QuantityTx == 0 {
-			//buyTx.Order.OrderStatus = "IN_PROGRESS" // unfulfilled
+			//buyTx.Order.OrderStatus = "IN_PROGRESS"
 		} else if buyQuantityRemaining > 0 {
 			buyTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
 		} else { // = 0
 			buyTx.Order.OrderStatus = "COMPLETED"
 		}
 
-		if buyTx.Order.OrderType == "LIMIT" {
+		if buyTx.Order.OrderStatus != "COMPLETED" && buyTx.Order.OrderType == "LIMIT" {
 			book.buys.Set(buyTx.Order, buyTx)
 		}
 
@@ -264,14 +264,14 @@ func (book orderbook) matchSell(sellTx models.StockMatch, txCommitQueue *[]model
 		sellTx.QuantityTx = sellTx.Order.Quantity - sellQuantityRemaining
 
 		if sellTx.QuantityTx == 0 {
-			//buyTx.Order.OrderStatus = "IN_PROGRESS" // unfulfilled
+			//buyTx.Order.OrderStatus = "IN_PROGRESS"
 		} else if sellQuantityRemaining > 0 {
 			sellTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
 		} else { // = 0
 			sellTx.Order.OrderStatus = "COMPLETED"
 		}
 
-		if sellTx.Order.OrderType == "LIMIT" {
+		if sellTx.Order.OrderStatus != "COMPLETED" && sellTx.Order.OrderType == "LIMIT" {
 			book.sells.Set(sellTx.Order, sellTx)
 		}
 
