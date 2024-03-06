@@ -53,7 +53,7 @@ func sellIsLowerPriorityThan(l, r interface{}) bool {
 
 // Returns true if transaction's timestamp is over 15 minutes old.
 func isExpired(tx models.StockMatch) bool {
-	return time.Now().Unix()+(15*60) <= tx.Order.TimeStamp
+	return time.Now().Unix() >= tx.Order.TimeStamp+(15*60)
 }
 
 func getOrderbook(tx models.StockTransaction) orderbook {
