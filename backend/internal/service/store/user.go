@@ -102,6 +102,7 @@ func (mh *MongoHandler) SetWalletBalance(userName string, newBalance int) error 
 	return nil
 }
 
+
 // Tested.
 func (mh *MongoHandler) AddWalletTransaction(userName string, walletTxID string, stockID string, is_debit bool, amount int, timeStamp int64) error {
 
@@ -132,6 +133,7 @@ func (mh *MongoHandler) AddWalletTransaction(userName string, walletTxID string,
 	if err != nil {
 		return err
 	}
+
 	// update the user's wallet_txns
 	_, err = collection.UpdateOne(context.Background(), bson.M{"user_name": user.UserName}, bson.M{"$push": bson.M{"wallet_txns": walletTx}})
 	if err != nil {
@@ -139,6 +141,7 @@ func (mh *MongoHandler) AddWalletTransaction(userName string, walletTxID string,
 	}
 	return nil
 }
+
 
 // Tested.
 func (mh *MongoHandler) DeleteWalletTransaction(userName string, walletTxID string) error {

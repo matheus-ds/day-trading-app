@@ -33,7 +33,10 @@ type StockPrice struct {
 }
 
 type StockMatch struct {
-	Order      StockTransaction `json:"order" bson:"order"`
-	QuantityTx int              `json:"quantityTx" bson:"quantity_tx"`
-	PriceTx    int              `json:"priceTx" bson:"price_tx"`
+	Order       StockTransaction `json:"order" bson:"order"`                 // original order; though matching engine will change OrderStatus
+	QuantityTx  int              `json:"quantity_tx" bson:"quantity_tx"`     // quantity actually transacted
+	PriceTx     int              `json:"price_tx" bson:"price_tx"`           // price actually transacted
+	CostTotalTx int              `json:"cost_total_tx" bson:"cost_total_tx"` // total cost transacted; needed for parent tx
+	IsParent    bool             `json:"is_parent" bson:"is_parent"`         // true if transaction has created a child
+	Killed      bool             `json:"killed" bson:"killed"`               // expired or cancelled
 }
