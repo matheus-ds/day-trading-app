@@ -11,7 +11,17 @@ import (
 	"time"
 
 	"github.com/ryszard/goskiplist/skiplist"
+	"github.com/slobdell/skew-binomial-queues"
 )
+
+type StockMatch struct {
+	Order       models.StockTransaction `json:"order" bson:"order"`                 // original order; though matching engine will change OrderStatus
+	QuantityTx  int                     `json:"quantity_tx" bson:"quantity_tx"`     // quantity actually transacted
+	PriceTx     int                     `json:"price_tx" bson:"price_tx"`           // price actually transacted
+	CostTotalTx int                     `json:"cost_total_tx" bson:"cost_total_tx"` // total cost transacted; needed for parent tx
+	IsParent    bool                    `json:"is_parent" bson:"is_parent"`         // true if transaction has created a child
+	Killed      bool                    `json:"killed" bson:"killed"`               // expired or cancelled
+}
 
 // TODO: Optimize for space. Currently stores whole transactions, as both keys and values. Smaller keys is easy.
 
@@ -22,6 +32,12 @@ type orderbook struct {
 type orderbooks map[string]orderbook
 
 var bookMap = make(orderbooks)
+var expireQueue = priorityq.NewMutableParallelQ()
+
+// Define ordering comparison value for expiration queue
+func (tx StockMatch) Score() int64 {
+	return tx.Order.TimeStamp
+}
 
 // Define orderings for orderbooks. Sort first by price, then if equal price, by time.
 
@@ -52,7 +68,7 @@ func sellIsLowerPriorityThan(l, r interface{}) bool {
 }
 
 // Returns true if transaction's timestamp is over 15 minutes old.
-func isExpired(tx models.StockMatch) bool {
+func isExpired(tx StockMatch) bool {
 	return time.Now().UnixNano() >= tx.Order.TimeStamp+(15*time.Minute).Nanoseconds()
 }
 
@@ -68,7 +84,7 @@ func getOrderbook(tx models.StockTransaction) orderbook {
 
 // Create child transaction based on parentTx, ordering some specified quantity of otherTx.
 // Also adds transaction cost to parentTx.CostTotalTx.
-func createChildTx(parentTx *models.StockMatch, quantityTraded int, priceTraded int) models.StockMatch {
+func createChildTx(parentTx *StockMatch, quantityTraded int, priceTraded int) StockMatch {
 	var childTx = *parentTx
 	childTx.Order.ParentStockTxID = &parentTx.Order.StockTxID
 	childTx.Order.StockTxID = strings.ToLower(childTx.Order.StockID) + "StockTxId" + uuid.New().String() // todo fix?
@@ -89,9 +105,14 @@ func createChildTx(parentTx *models.StockMatch, quantityTraded int, priceTraded 
 func Match(order models.StockTransaction) {
 	var book = getOrderbook(order)
 
-	var tx = models.StockMatch{Order: order, QuantityTx: 0, PriceTx: 0, CostTotalTx: 0, IsParent: false, Killed: false}
+	var tx = StockMatch{Order: order, QuantityTx: 0, PriceTx: 0, CostTotalTx: 0, IsParent: false, Killed: false}
 
-	var txCommitQueue []models.StockMatch
+	if order.OrderType == "LIMIT" {
+		expireQueue.Enqueue(tx)
+	}
+
+	var txCommitQueue []StockMatch
+
 	if order.IsBuy {
 		book.matchBuy(tx, &txCommitQueue)
 	} else {
@@ -105,7 +126,7 @@ func Match(order models.StockTransaction) {
 // todo Specification unclear as to what price that two matched price limit-orders with different prices should trade at.
 // todo   So for now we're taking the oldest limit-order's price.
 
-func (book orderbook) matchBuy(buyTx models.StockMatch, txCommitQueue *[]models.StockMatch) {
+func (book orderbook) matchBuy(buyTx StockMatch, txCommitQueue *[]StockMatch) {
 	if book.sells.Len() == 0 {
 		if buyTx.Order.OrderType == "LIMIT" {
 			book.buys.Set(buyTx.Order, buyTx)
@@ -120,7 +141,7 @@ func (book orderbook) matchBuy(buyTx models.StockMatch, txCommitQueue *[]models.
 		var buyQuantityRemaining = buyTx.Order.Quantity
 
 		for buyQuantityRemaining > 0 && sellsHasNext {
-			lowestSellTx := sellIter.Value().(models.StockMatch)
+			lowestSellTx := sellIter.Value().(StockMatch)
 			sellsHasNext = sellIter.Next()
 			sellQuantityRemaining := lowestSellTx.Order.Quantity - lowestSellTx.QuantityTx
 
@@ -192,7 +213,7 @@ func (book orderbook) matchBuy(buyTx models.StockMatch, txCommitQueue *[]models.
 	}
 }
 
-func (book orderbook) matchSell(sellTx models.StockMatch, txCommitQueue *[]models.StockMatch) {
+func (book orderbook) matchSell(sellTx StockMatch, txCommitQueue *[]StockMatch) {
 	if book.buys.Len() == 0 {
 		if sellTx.Order.OrderType == "LIMIT" {
 			book.sells.Set(sellTx.Order, sellTx)
@@ -207,7 +228,7 @@ func (book orderbook) matchSell(sellTx models.StockMatch, txCommitQueue *[]model
 		var sellQuantityRemaining = sellTx.Order.Quantity
 
 		for sellQuantityRemaining > 0 && buysHasNext {
-			highestBuyTx := buyIter.Value().(models.StockMatch)
+			highestBuyTx := buyIter.Value().(StockMatch)
 			buysHasNext = buyIter.Next()
 			buyQuantityRemaining := highestBuyTx.Order.Quantity - highestBuyTx.QuantityTx
 
@@ -283,7 +304,7 @@ func (book orderbook) matchSell(sellTx models.StockMatch, txCommitQueue *[]model
 // If found, the matching transaction is enqueued. Basically a deliberate premature expiration.
 func CancelOrder(order models.StockTransaction) (wasCancelled bool) {
 	var book = bookMap[order.StockID]
-	var txCommitQueue []models.StockMatch
+	var txCommitQueue []StockMatch
 	if book.buys != nil {
 		if order.IsBuy {
 			wasCancelled = book.cancelBuyOrder(order, &txCommitQueue)
@@ -299,36 +320,49 @@ func CancelOrder(order models.StockTransaction) (wasCancelled bool) {
 
 // cancelBuyOrder() and cancelSellOrder() are mirrors of each other, with "buy" and "sell" swapped.
 
-func (book orderbook) cancelBuyOrder(order models.StockTransaction, txCommitQueue *[]models.StockMatch) (wasFound bool) {
+func (book orderbook) cancelBuyOrder(order models.StockTransaction, txCommitQueue *[]StockMatch) (wasFound bool) {
 	victimTx, wasFound := book.buys.Get(order)
 	if wasFound {
 		book.buys.Delete(order)
-		victimTx := victimTx.(models.StockMatch)
+		victimTx := victimTx.(StockMatch)
 		victimTx.Killed = true
 		*txCommitQueue = append(*txCommitQueue, victimTx)
 	}
 	return wasFound
 }
 
-func (book orderbook) cancelSellOrder(order models.StockTransaction, txCommitQueue *[]models.StockMatch) (wasFound bool) {
+func (book orderbook) cancelSellOrder(order models.StockTransaction, txCommitQueue *[]StockMatch) (wasFound bool) {
 	victimTx, wasFound := book.sells.Get(order)
 	if wasFound {
 		book.sells.Delete(order)
-		victimTx := victimTx.(models.StockMatch)
+		victimTx := victimTx.(StockMatch)
 		victimTx.Killed = true
 		*txCommitQueue = append(*txCommitQueue, victimTx)
 	}
 	return wasFound
 }
 
-// FlushExpired checks all active transactions, pushing any that are expired.
+// FlushExpired checks
 func FlushExpired() {
-	var txCommitQueue []models.StockMatch
+	var doneChecking = false
+	for doneChecking {
+		var top = expireQueue.Peek().(StockMatch)
+		if isExpired(top) {
+			CancelOrder(top.Order)
+		} else {
+			doneChecking = true
+		}
+	}
+}
+
+// FlushAllExpired checks all active transactions in system, pushing any that are expired. Slow!
+func FlushAllExpired() {
+	var txCommitQueue []StockMatch
 
 	for _, book := range bookMap {
 		txIter := book.buys.Iterator()
 		for txIter.Next() {
-			tx := txIter.Value().(models.StockMatch)
+			tx := txIter.Value().(StockMatch)
 			if isExpired(tx) {
 				book.sells.Delete(tx.Order)
 				tx.Killed = true
@@ -337,7 +371,7 @@ func FlushExpired() {
 		}
 		txIter = book.sells.Iterator()
 		for txIter.Next() {
-			tx := txIter.Value().(models.StockMatch)
+			tx := txIter.Value().(StockMatch)
 			if isExpired(tx) {
 				book.sells.Delete(tx.Order)
 				tx.Killed = true
