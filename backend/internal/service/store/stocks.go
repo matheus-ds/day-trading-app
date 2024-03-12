@@ -9,6 +9,8 @@ import (
 
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // look up context and what it does
@@ -35,19 +37,22 @@ func (mh *MongoHandler) CreateStock(stockName string) (models.StockCreated, erro
 }
 
 // Tested
-func (mh *MongoHandler) AddStockToUser(userName, stockID, stockName string, quantity int) error {
+func (mh *MongoHandler) AddStockToUser(userName string, stockID string, quantity int) error {
+
 	collection := mh.client.Database("day-trading-app").Collection("users")
+
+	stockName := strings.Split(cases.Title(language.Make(stockID)).String(stockID), "stockid")[0]
 
 	//test use only:
 	//fmt.Println("USERNAME: ", userName)
 	//_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": "TESTonPOSTMAN_after"}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": "googleStockId", "quantity": 550}}})
 
 	//bandaid fix for SINGLE USER TESTING
-	var user models.User
-	err := collection.FindOneAndUpdate(context.Background(), bson.M{}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": stockID, "quantity": quantity}}}).Decode(&user)
+	// var user models.User
+	// err := collection.FindOneAndUpdate(context.Background(), bson.M{}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": stockID, "stock_name": stockName, "quantity": quantity}}}).Decode(&user)
 
-	//Uncomment line below and comment the above line for MULTI USER TESTING
-	//_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": userName}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": stockID, "quantity": quantity}}})
+	//Uncomment line below and comment the below line for MULTI USER TESTING
+	_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": userName}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": stockID, "stock_name": stockName, "quantity": quantity}}})
 	if err != nil {
 		return err
 	}
@@ -64,6 +69,11 @@ func (mh *MongoHandler) GetStockPortfolio(userName string) ([]models.PortfolioIt
 	//test use only:
 	//err := collection.FindOne(context.Background(), bson.M{"user_name": "VanguardETF"}).Decode(&user)
 	//Uncomment line below and comment the above line for production
+
+	//bandaid fix for SINGLE USER TESTING
+	//err := collection.FindOne(context.Background(), bson.M{}).Decode(&user)
+
+	//Uncomment line below and comment the below line for MULTI USER TESTING
 	err := collection.FindOne(context.Background(), bson.M{"user_name": userName}).Decode(&user)
 	if err != nil {
 		return nil, err
