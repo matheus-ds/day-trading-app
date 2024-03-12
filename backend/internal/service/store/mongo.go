@@ -24,7 +24,9 @@ func GetMongoHandler() *MongoHandler {
 		if handler == nil {
 			fmt.Println("Creating mongo single instance now.")
 			// Please connect.
-			client, err := mongo.Connect(context.Background(), options.Client().ApplyURI("mongodb://localhost:27017"))
+			// host.docker.internal only works in docker container
+			// need to come up with a better way to handle this for local development vs production
+			client, err := mongo.Connect(context.Background(), options.Client().ApplyURI("mongodb://host.docker.internal:27017"))
 			// Do we need to disconnect once we are done?
 			if err != nil {
 				fmt.Println("Error connecting to mongo: ", err)
