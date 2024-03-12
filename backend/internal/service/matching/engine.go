@@ -23,6 +23,15 @@ type StockMatch struct {
 	Killed      bool                    `json:"killed" bson:"killed"`               // expired or cancelled
 }
 
+func init() {
+	// Start ticker goroutine to periodically flush expired limit orders
+	go func() {
+		for range time.Tick(1 * time.Second) {
+			FlushExpired()
+		}
+	}()
+}
+
 // TODO: Optimize for space. Currently stores whole transactions, as both keys and values. Smaller keys is easy.
 
 type orderbook struct {
@@ -342,15 +351,16 @@ func (book orderbook) cancelSellOrder(order models.StockTransaction, txCommitQue
 	return wasFound
 }
 
-// FlushExpired checks
+// FlushExpired checks for any expired transactions based on a priority queue.
 func FlushExpired() {
-	var doneChecking = false
-	for doneChecking {
-		var top = expireQueue.Peek().(StockMatch)
-		if isExpired(top) {
-			CancelOrder(top.Order)
+	var allFresh = false
+	for !allFresh && !expireQueue.IsEmpty() {
+		var oldest = expireQueue.Peek()
+		if isExpired(oldest.(StockMatch)) {
+			oldest, expireQueue = expireQueue.Dequeue()
+			CancelOrder(oldest.(StockMatch).Order)
 		} else {
-			doneChecking = true
+			allFresh = true
 		}
 	}
 }
