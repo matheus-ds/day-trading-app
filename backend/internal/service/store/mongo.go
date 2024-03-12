@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 
 	"go.mongodb.org/mongo-driver/mongo"
@@ -24,9 +25,8 @@ func GetMongoHandler() *MongoHandler {
 		if handler == nil {
 			fmt.Println("Creating mongo single instance now.")
 			// Please connect.
-			// host.docker.internal only works in docker container
-			// need to come up with a better way to handle this for local development vs production
-			client, err := mongo.Connect(context.Background(), options.Client().ApplyURI("mongodb://host.docker.internal:27017"))
+			uri := fmt.Sprintf("mongodb://%s:27017", os.Getenv("MONGO_HOST"))
+			client, err := mongo.Connect(context.Background(), options.Client().ApplyURI(uri))
 			// Do we need to disconnect once we are done?
 			if err != nil {
 				fmt.Println("Error connecting to mongo: ", err)
