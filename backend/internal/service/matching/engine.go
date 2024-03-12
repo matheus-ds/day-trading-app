@@ -8,6 +8,7 @@ import (
 	"day-trading-app/backend/internal/service/models"
 	"github.com/google/uuid"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/adrianbrad/queue"
@@ -37,10 +38,11 @@ func init() {
 type orderbook struct {
 	buys  *skiplist.SkipList
 	sells *skiplist.SkipList
+	m     *sync.Mutex
 }
-type orderbooks map[string]orderbook
 
-var bookMap = make(orderbooks)
+var bookMap = make(map[string]orderbook)
+var bookMapLock sync.Mutex
 var expireQueue = queue.NewPriority([]StockMatch{}, lessTime, queue.WithCapacity(1000000)) // todo: adjust capacity
 
 // Define ordering comparison value for expiration queue
@@ -83,9 +85,14 @@ func isExpired(tx StockMatch) bool {
 
 func getOrderbook(tx models.StockTransaction) orderbook {
 	if bookMap[tx.StockID].buys == nil {
-		bookMap[tx.StockID] = orderbook{
-			buys:  skiplist.NewCustomMap(buyIsLowerPriorityThan),
-			sells: skiplist.NewCustomMap(sellIsLowerPriorityThan),
+		bookMapLock.Lock()
+		defer bookMapLock.Unlock()
+		if bookMap[tx.StockID].buys == nil {
+			bookMap[tx.StockID] = orderbook{
+				buys:  skiplist.NewCustomMap(buyIsLowerPriorityThan),
+				sells: skiplist.NewCustomMap(sellIsLowerPriorityThan),
+				m:     &sync.Mutex{},
+			}
 		}
 	}
 	return bookMap[tx.StockID]
@@ -136,6 +143,9 @@ func Match(order models.StockTransaction) {
 // todo   So for now we're taking the oldest limit-order's price.
 
 func (book orderbook) matchBuy(buyTx StockMatch, txCommitQueue *[]StockMatch) {
+	book.m.Lock()
+	defer book.m.Unlock()
+
 	if book.sells.Len() == 0 {
 		if buyTx.Order.OrderType == "LIMIT" {
 			book.buys.Set(buyTx.Order, buyTx)
@@ -223,6 +233,9 @@ func (book orderbook) matchBuy(buyTx StockMatch, txCommitQueue *[]StockMatch) {
 }
 
 func (book orderbook) matchSell(sellTx StockMatch, txCommitQueue *[]StockMatch) {
+	book.m.Lock()
+	defer book.m.Unlock()
+
 	if book.buys.Len() == 0 {
 		if sellTx.Order.OrderType == "LIMIT" {
 			book.sells.Set(sellTx.Order, sellTx)
@@ -313,6 +326,8 @@ func (book orderbook) matchSell(sellTx StockMatch, txCommitQueue *[]StockMatch) 
 // If found, the matching transaction is enqueued. Basically a deliberate premature expiration.
 func CancelOrder(order models.StockTransaction) (wasCancelled bool) {
 	var book = bookMap[order.StockID]
+	book.m.Lock()
+
 	var txCommitQueue []StockMatch
 	if book.buys != nil {
 		if order.IsBuy {
@@ -321,6 +336,7 @@ func CancelOrder(order models.StockTransaction) (wasCancelled bool) {
 			wasCancelled = book.cancelSellOrder(order, &txCommitQueue)
 		}
 	}
+	book.m.Unlock()
 
 	ExecuteOrders(txCommitQueue)
 
@@ -363,32 +379,4 @@ func FlushExpired() {
 			allFresh = true
 		}
 	}
-}
-
-// FlushAllExpired checks all active transactions in system, pushing any that are expired. Slow!
-func FlushAllExpired() {
-	var txCommitQueue []StockMatch
-
-	for _, book := range bookMap {
-		txIter := book.buys.Iterator()
-		for txIter.Next() {
-			tx := txIter.Value().(StockMatch)
-			if isExpired(tx) {
-				book.sells.Delete(tx.Order)
-				tx.Killed = true
-				txCommitQueue = append(txCommitQueue, tx)
-			}
-		}
-		txIter = book.sells.Iterator()
-		for txIter.Next() {
-			tx := txIter.Value().(StockMatch)
-			if isExpired(tx) {
-				book.sells.Delete(tx.Order)
-				tx.Killed = true
-				txCommitQueue = append(txCommitQueue, tx)
-			}
-		}
-	}
-
-	ExecuteOrders(txCommitQueue)
 }
