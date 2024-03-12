@@ -30,7 +30,7 @@ type Database interface {
 
 	// stocks
 	CreateStock(stockName string) (models.StockCreated, error)
-	AddStockToUser(userName, stockID, stockName string, quantity int) error
+	AddStockToUser(userName string, stockID string, quantity int) error
 	GetStockPortfolio(userName string) ([]models.PortfolioItem, error)
 	GetStockTransactions() ([]models.StockTransaction, error)
 	GetStockPrices() ([]models.StockPrice, error)

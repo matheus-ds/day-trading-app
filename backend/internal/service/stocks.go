@@ -14,7 +14,7 @@ func (s serviceImpl) AddStockToUser(userName string, stockID string, quantity in
 	if quantity <= 0 {
 		return errors.New("invalid quantity")
 	}
-	stk, stkExists, err := s.doesStockExist(stockID)
+	_, stkExists, err := s.doesStockExist(stockID)
 	if err != nil {
 		return err
 	}
@@ -22,7 +22,7 @@ func (s serviceImpl) AddStockToUser(userName string, stockID string, quantity in
 		return errors.New("stock does not exist")
 	}
 
-	return s.db.AddStockToUser(userName, stockID, stk.StockName, quantity)
+	return s.db.AddStockToUser(userName, stockID, quantity)
 }
 
 func (s serviceImpl) GetStockPortfolio(userName string) ([]models.PortfolioItem, error) {
