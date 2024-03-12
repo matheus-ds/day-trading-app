@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/adrianbrad/queue"
 	"github.com/ryszard/goskiplist/skiplist"
-	"github.com/slobdell/skew-binomial-queues"
 )
 
 type StockMatch struct {
@@ -41,11 +41,11 @@ type orderbook struct {
 type orderbooks map[string]orderbook
 
 var bookMap = make(orderbooks)
-var expireQueue = priorityq.NewMutableParallelQ()
+var expireQueue = queue.NewPriority([]StockMatch{}, lessTime, queue.WithCapacity(1000000)) // todo: adjust capacity
 
 // Define ordering comparison value for expiration queue
-func (tx StockMatch) Score() int64 {
-	return tx.Order.TimeStamp
+func lessTime(elem StockMatch, elemAfter StockMatch) bool {
+	return elem.Order.TimeStamp < elemAfter.Order.TimeStamp
 }
 
 // Define orderings for orderbooks. Sort first by price, then if equal price, by time.
@@ -117,7 +117,7 @@ func Match(order models.StockTransaction) {
 	var tx = StockMatch{Order: order, QuantityTx: 0, PriceTx: 0, CostTotalTx: 0, IsParent: false, Killed: false}
 
 	if order.OrderType == "LIMIT" {
-		expireQueue.Enqueue(tx)
+		expireQueue.Offer(tx)
 	}
 
 	var txCommitQueue []StockMatch
@@ -355,10 +355,10 @@ func (book orderbook) cancelSellOrder(order models.StockTransaction, txCommitQue
 func FlushExpired() {
 	var allFresh = false
 	for !allFresh && !expireQueue.IsEmpty() {
-		var oldest = expireQueue.Peek()
-		if isExpired(oldest.(StockMatch)) {
-			oldest, expireQueue = expireQueue.Dequeue()
-			CancelOrder(oldest.(StockMatch).Order)
+		var oldest, _ = expireQueue.Peek()
+		if isExpired(oldest) {
+			oldest, _ = expireQueue.Get()
+			CancelOrder(oldest.Order)
 		} else {
 			allFresh = true
 		}

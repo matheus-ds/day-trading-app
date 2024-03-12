@@ -3,11 +3,11 @@ module day-trading-app/backend
 go 1.21
 
 require (
+	github.com/adrianbrad/queue v1.3.0
 	github.com/gin-contrib/cors v1.5.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/joho/godotenv v1.5.1
 	github.com/ryszard/goskiplist v0.0.0-20150312221310-2dfbae5fcf46
-	github.com/slobdell/skew-binomial-queues v2.0.0+incompatible
 	github.com/spf13/viper v1.18.2
 	go.mongodb.org/mongo-driver v1.14.0
 	go.uber.org/zap v1.26.0
