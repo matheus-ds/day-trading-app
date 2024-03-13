@@ -51,7 +51,7 @@ func executeBuy(tx StockMatch) {
 
 	} else if tx.Order.OrderStatus == "COMPLETED" {
 		// Add stock quantity to user portfolio
-		mh.AddStockToUser(tx.Order.UserName, tx.Order.StockID, "", tx.Order.Quantity)
+		mh.AddStockToUser(tx.Order.UserName, tx.Order.StockID, tx.Order.Quantity)
 
 		if tx.Order.ParentStockTxID != nil { // child
 			// Add child tx to db
@@ -75,14 +75,14 @@ func executeBuy(tx StockMatch) {
 func executeSell(tx StockMatch) {
 	if tx.Order.OrderStatus == "IN_PROGRESS" { // unfulfilled
 		// Add stock quantity back to user portfolio
-		mh.AddStockToUser(tx.Order.UserName, tx.Order.StockID, "", tx.Order.Quantity)
+		mh.AddStockToUser(tx.Order.UserName, tx.Order.StockID, tx.Order.Quantity)
 
 		// Delete stock transaction
 		mh.DeleteStockTransaction(tx.Order.StockTxID)
 
 	} else if tx.Order.OrderStatus == "PARTIALLY_FULFILLED" {
 		// Add remaining stock quantity back to user portfolio (remaining = Order.Quantity - QuantityTx)
-		mh.AddStockToUser(tx.Order.UserName, tx.Order.StockID, "", tx.Order.Quantity-tx.QuantityTx)
+		mh.AddStockToUser(tx.Order.UserName, tx.Order.StockID, tx.Order.Quantity-tx.QuantityTx)
 
 		if tx.Order.OrderType == "MARKET" && !tx.IsParent {
 			tx.Order.StockPrice = tx.PriceTx
