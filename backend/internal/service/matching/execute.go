@@ -1,13 +1,12 @@
 package matching
 
 import (
-	"day-trading-app/backend/internal/service/models"
 	"day-trading-app/backend/internal/service/store"
 )
 
 var mh = store.GetMongoHandler()
 
-func ExecuteOrders(txCommitQueue []models.StockMatch) {
+func ExecuteOrders(txCommitQueue []StockMatch) {
 	for _, tx := range txCommitQueue {
 		if tx.IsParent && !tx.Killed {
 			// Update stock transaction status
@@ -22,7 +21,7 @@ func ExecuteOrders(txCommitQueue []models.StockMatch) {
 	}
 }
 
-func executeBuy(tx models.StockMatch) {
+func executeBuy(tx StockMatch) {
 	if tx.Order.OrderStatus == "IN_PROGRESS" { // unfulfilled
 		// Add deducted money back to wallet
 		var deducted = tx.Order.Quantity * tx.Order.StockPrice
@@ -73,7 +72,7 @@ func executeBuy(tx models.StockMatch) {
 	}
 }
 
-func executeSell(tx models.StockMatch) {
+func executeSell(tx StockMatch) {
 	if tx.Order.OrderStatus == "IN_PROGRESS" { // unfulfilled
 		// Add stock quantity back to user portfolio
 		mh.AddStockToUser(tx.Order.UserName, tx.Order.StockID, tx.Order.Quantity)
