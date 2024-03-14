@@ -3,6 +3,7 @@ package service
 import (
 	"day-trading-app/backend/internal/service/matching"
 	"errors"
+	"time"
 
 	"day-trading-app/backend/internal/service/models"
 )
@@ -94,10 +95,20 @@ func (s serviceImpl) CancelStockTransaction(userName string, stockTxID string) e
 
 	for _, item := range txs {
 		if item.UserName == userName && item.StockTxID == stockTxID {
-			if item.OrderStatus != "COMPLETED" {
+			if item.OrderType == "MARKET" {
+				return errors.New("cannot cancel a market transaction")
+			} else if item.OrderStatus != "COMPLETED" {
 				return errors.New("cannot cancel a completed transaction")
+			} else if time.Now().UnixNano() >= item.TimeStamp+(15*time.Minute).Nanoseconds() {
+				return errors.New("cannot cancel an expired transaction")
+			} else {
+				wasCancelled := matching.CancelOrder(item)
+				if !wasCancelled {
+					return errors.New("cannot cancel transaction; was not found in matching engine")
+				} else {
+					return nil
+				}
 			}
-			return s.db.CancelStockTransaction(userName, stockTxID)
 		}
 	}
 	return errors.New("stock transaction not found for given user")
