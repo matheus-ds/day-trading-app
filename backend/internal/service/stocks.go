@@ -48,7 +48,7 @@ func (s serviceImpl) PlaceStockOrder(userName string, stockID string, isBuy bool
 		return errors.New("invalid quantity")
 	}
 
-	if price <= 0 {
+	if price < 0 {
 		return errors.New("invalid price")
 	}
 
