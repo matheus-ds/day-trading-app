@@ -164,14 +164,14 @@ func (mh *MongoHandler) GetStockPrices() ([]models.StockPrice, error) {
 }
 
 // Tested
-func (mh *MongoHandler) PlaceStockOrder(userName string, stockID string, isBuy bool, orderType string, quantity int, price int) error {
+func (mh *MongoHandler) PlaceStockOrder(userName string, stockID string, isBuy bool, orderType string, quantity int, price int) (models.StockTransaction, error) {
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 	// add string "Tx" inbetween stockID's name, for example, "googleStockId" becomes "googleStockTxId"
 	index := strings.Index(stockID, "Stock")
 	stockTxID := stockID[:index+len("Stock")] + "Tx" + stockID[index+len("Stock"):] + uuid.New().String()
 	// replace "StockId" with "WalletTxId" in stockID
 	walletTxID := strings.Replace(stockID, "StockId", "WalletTxId", 1)
-  
+
 	//Uncomment this line and comment the above line for production
 	transaction := models.StockTransaction{
 		UserName:        userName,
@@ -190,9 +190,9 @@ func (mh *MongoHandler) PlaceStockOrder(userName string, stockID string, isBuy b
 	// Insert the new stock transaction into the collection
 	_, err := collection.InsertOne(context.Background(), transaction)
 	if err != nil {
-		return err
+		return transaction, err
 	}
-	return nil
+	return transaction, nil
 }
 
 // Tested

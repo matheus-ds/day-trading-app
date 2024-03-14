@@ -1,6 +1,7 @@
 package service
 
 import (
+	"day-trading-app/backend/internal/service/matching"
 	"errors"
 
 	"day-trading-app/backend/internal/service/models"
@@ -79,9 +80,10 @@ func (s serviceImpl) PlaceStockOrder(userName string, stockID string, isBuy bool
 		}
 	}
 
-	// TODO: call matching engine to place the order
+	transaction, err := s.db.PlaceStockOrder(userName, stockID, isBuy, orderType, quantity, price)
+	matching.Match(transaction)
 
-	return s.db.PlaceStockOrder(userName, stockID, isBuy, orderType, quantity, price)
+	return err
 }
 
 func (s serviceImpl) CancelStockTransaction(userName string, stockTxID string) error {
