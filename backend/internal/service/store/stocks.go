@@ -171,7 +171,7 @@ func (mh *MongoHandler) PlaceStockOrder(userName string, stockID string, isBuy b
 	stockTxID := stockID[:index+len("Stock")] + "Tx" + stockID[index+len("Stock"):] + uuid.New().String()
 	// replace "StockId" with "WalletTxId" in stockID
 	walletTxID := strings.Replace(stockID, "StockId", "WalletTxId", 1)
-
+  
 	//Uncomment this line and comment the above line for production
 	transaction := models.StockTransaction{
 		UserName:        userName,
@@ -184,7 +184,7 @@ func (mh *MongoHandler) PlaceStockOrder(userName string, stockID string, isBuy b
 		OrderType:       orderType,
 		StockPrice:      price,
 		Quantity:        quantity,
-		TimeStamp:       time.Now().Unix(), // Use the current time as the timestamp
+		TimeStamp:       time.Now().UnixNano(), // Use the current time as the timestamp
 	}
 
 	// Insert the new stock transaction into the collection
