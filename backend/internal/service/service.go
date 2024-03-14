@@ -31,6 +31,9 @@ type Database interface {
 	// stocks
 	CreateStock(stockName string) (models.StockCreated, error)
 	AddStockToUser(userName string, stockID string, quantity int) error
+	UpdateStockToUser(userName string, stockID string, quantity int) error
+	DeleteStockToUser(userName string, stockID string) error
+	GetStockQuantityFromUser(userName string, stockID string) (int, error)
 	GetStockPortfolio(userName string) ([]models.PortfolioItem, error)
 	GetStockTransactions() ([]models.StockTransaction, error)
 	GetStockPrices() ([]models.StockPrice, error)

@@ -43,20 +43,50 @@ func (mh *MongoHandler) AddStockToUser(userName string, stockID string, quantity
 
 	stockName := strings.Split(cases.Title(language.Make(stockID)).String(stockID), "stockid")[0]
 
-	//test use only:
-	//fmt.Println("USERNAME: ", userName)
-	//_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": "TESTonPOSTMAN_after"}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": "googleStockId", "quantity": 550}}})
-
-	//bandaid fix for SINGLE USER TESTING
-	// var user models.User
-	// err := collection.FindOneAndUpdate(context.Background(), bson.M{}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": stockID, "stock_name": stockName, "quantity": quantity}}}).Decode(&user)
-
-	//Uncomment line below and comment the below line for MULTI USER TESTING
 	_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": userName}, bson.M{"$push": bson.M{"stocks": bson.M{"stock_id": stockID, "stock_name": stockName, "quantity": quantity}}})
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+// TESTED
+func (mh *MongoHandler) UpdateStockToUser(userName string, stockID string, quantity int) error {
+
+	collection := mh.client.Database("day-trading-app").Collection("users")
+
+	_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": userName, "stocks": bson.M{"$elemMatch": bson.M{"stock_id": stockID}}}, bson.M{"$set": bson.M{"stocks.$.quantity": quantity}})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// TESTED
+func (mh *MongoHandler) DeleteStockToUser(userName string, stockID string) error {
+
+	collection := mh.client.Database("day-trading-app").Collection("users")
+
+	_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": userName}, bson.M{"$pull": bson.M{"stocks": bson.M{"stock_id": stockID}}})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// TESTED
+func (mh *MongoHandler) GetStockQuantityFromUser(userName string, stockID string) (int, error) {
+
+	collection := mh.client.Database("day-trading-app").Collection("users")
+
+	var user models.User
+	collection.FindOne(context.Background(), bson.M{"user_name": userName}).Decode(&user)
+	for _, stock := range user.Stocks {
+		if stock.StockID == stockID {
+			return stock.Quantity, nil
+		}
+	}
+	return 0, errors.New("stock not found in user's portfolio")
 }
 
 // Tested
@@ -66,14 +96,7 @@ func (mh *MongoHandler) GetStockPortfolio(userName string) ([]models.PortfolioIt
 
 	// Find the user by their username
 	var user models.User
-	//test use only:
-	//err := collection.FindOne(context.Background(), bson.M{"user_name": "VanguardETF"}).Decode(&user)
-	//Uncomment line below and comment the above line for production
 
-	//bandaid fix for SINGLE USER TESTING
-	//err := collection.FindOne(context.Background(), bson.M{}).Decode(&user)
-
-	//Uncomment line below and comment the below line for MULTI USER TESTING
 	err := collection.FindOne(context.Background(), bson.M{"user_name": userName}).Decode(&user)
 	if err != nil {
 		return nil, err
@@ -148,23 +171,7 @@ func (mh *MongoHandler) PlaceStockOrder(userName string, stockID string, isBuy b
 	stockTxID := stockID[:index+len("Stock")] + "Tx" + stockID[index+len("Stock"):] + uuid.New().String()
 	// replace "StockId" with "WalletTxId" in stockID
 	walletTxID := strings.Replace(stockID, "StockId", "WalletTxId", 1)
-
-	// Create a new stock transaction
-	// //test use only:
-	// transaction := models.StockTransaction{
-	// 	UserName:        "VanguardETF",
-	// 	StockTxID:       "googleStockTxID",
-	// 	ParentStockTxID: nil, // ParentStockTxID is nil for the first transaction but how do we handle it for subsequent transactions?
-	// 	StockID:         "googleStockId",
-	// 	WalletTxID:      "googleWalletTxId", // WalletTxID
-	// 	OrderStatus:     "IN_PROGRESS",      // initial status of the order is "IN_PROGRESS" needs to be updated to "COMPLETED" or "CANCELLED" later
-	// 	IsBuy:           isBuy,
-	// 	OrderType:       orderType,
-	// 	StockPrice:      price,
-	// 	Quantity:        quantity,
-	// 	TimeStamp:       time.Now().UnixNano(), // Use the current time as the timestamp
-	// }
-
+  
 	//Uncomment this line and comment the above line for production
 	transaction := models.StockTransaction{
 		UserName:        userName,
