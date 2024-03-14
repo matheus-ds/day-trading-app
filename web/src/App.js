@@ -31,10 +31,13 @@ function Router() {
 
   function authenticate(username, password) {
     api.login(username, password).then(function (response) {
+      console.log(response)
       setAuthtoken(response.success)
       if (response.success) {
         api.setToken(response.data.token);
         navigate('/');
+      } else {
+        alert(response.data.error);
       }
     });
   }

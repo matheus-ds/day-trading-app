@@ -28,7 +28,7 @@ const Login = (props) => {
             <Form.Group controlId="formBasicEmail">
               <Form.Label>Email address</Form.Label>
               <Form.Control
-                type="email"
+                type="text"
                 placeholder="user name"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
