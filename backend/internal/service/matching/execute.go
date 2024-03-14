@@ -34,7 +34,7 @@ func executeBuy(tx StockMatch) {
 		// Delete wallet transaction
 		mh.DeleteWalletTransaction(tx.Order.UserName, tx.Order.WalletTxID)
 
-	} else if tx.Order.OrderStatus == "PARTIALLY_FULFILLED" {
+	} else if tx.Order.OrderStatus == "PARTIAL_FULFILLED" {
 		// Refund remaining wallet amount
 		var deducted = tx.Order.Quantity * tx.Order.StockPrice
 		walletBalance, _ := mh.GetWalletBalance(tx.Order.UserName)
@@ -80,7 +80,7 @@ func executeSell(tx StockMatch) {
 		// Delete stock transaction
 		mh.DeleteStockTransaction(tx.Order.StockTxID)
 
-	} else if tx.Order.OrderStatus == "PARTIALLY_FULFILLED" {
+	} else if tx.Order.OrderStatus == "PARTIAL_FULFILLED" {
 		// Add remaining stock quantity back to user portfolio (remaining = Order.Quantity - QuantityTx)
 		mh.AddStockToUser(tx.Order.UserName, tx.Order.StockID, tx.Order.Quantity-tx.QuantityTx)
 

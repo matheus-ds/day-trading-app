@@ -205,7 +205,7 @@ func (book orderbook) matchBuy(buyTx StockMatch, txCommitQueue *[]StockMatch) {
 						buyTx.CostTotalTx += buyQuantityRemaining * lowestSellTx.Order.StockPrice
 					}
 
-					lowestSellTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
+					lowestSellTx.Order.OrderStatus = "PARTIAL_FULFILLED"
 					var sellChildTx = createChildTx(&lowestSellTx, buyQuantityRemaining, lowestSellTx.Order.StockPrice)
 					*txCommitQueue = append(*txCommitQueue, sellChildTx)
 
@@ -219,7 +219,7 @@ func (book orderbook) matchBuy(buyTx StockMatch, txCommitQueue *[]StockMatch) {
 		if buyTx.QuantityTx == 0 {
 			//buyTx.Order.OrderStatus = "IN_PROGRESS"
 		} else if buyQuantityRemaining > 0 {
-			buyTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
+			buyTx.Order.OrderStatus = "PARTIAL_FULFILLED"
 		} else { // = 0
 			buyTx.Order.OrderStatus = "COMPLETED"
 		}
@@ -295,7 +295,7 @@ func (book orderbook) matchSell(sellTx StockMatch, txCommitQueue *[]StockMatch) 
 						sellTx.CostTotalTx += sellQuantityRemaining * highestBuyTx.Order.StockPrice
 					}
 
-					highestBuyTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
+					highestBuyTx.Order.OrderStatus = "PARTIAL_FULFILLED"
 					var buyChildTx = createChildTx(&highestBuyTx, sellQuantityRemaining, highestBuyTx.Order.StockPrice)
 					*txCommitQueue = append(*txCommitQueue, buyChildTx)
 
@@ -309,7 +309,7 @@ func (book orderbook) matchSell(sellTx StockMatch, txCommitQueue *[]StockMatch) 
 		if sellTx.QuantityTx == 0 {
 			//buyTx.Order.OrderStatus = "IN_PROGRESS"
 		} else if sellQuantityRemaining > 0 {
-			sellTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
+			sellTx.Order.OrderStatus = "PARTIAL_FULFILLED"
 		} else { // = 0
 			sellTx.Order.OrderStatus = "COMPLETED"
 		}

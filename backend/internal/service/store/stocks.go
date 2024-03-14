@@ -197,7 +197,7 @@ func (mh *MongoHandler) PlaceStockOrder(userName string, stockID string, isBuy b
 
 // Tested
 func (mh *MongoHandler) UpdateStockOrder(models.StockTransaction) error {
-	// UpdateStockOrder updates the status of a stock transaction with the given stockTxID to have the status "COMPLETED" or "PARTIALLY_FULFILLED"
+	// UpdateStockOrder updates the status of a stock transaction with the given stockTxID to have the status "COMPLETED" or "PARTIAL_FULFILLED"
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 	// update the stock transaction by stockTxID and replace it with models.StockTransaction
 
@@ -213,13 +213,13 @@ func (mh *MongoHandler) UpdateStockOrder(models.StockTransaction) error {
 func (mh *MongoHandler) CancelStockTransaction(userName string, stockTxID string) error {
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 	// Update the stock transaction with the given stockTxID to have the status "CANCELLED"
-	// need to check first if transaction is IN_PROGRESS or PARTIALLY_FULFILLED and abort if not. Because some transactions might be too late to cancel.
+	// need to check first if transaction is IN_PROGRESS or PARTIAL_FULFILLED and abort if not. Because some transactions might be too late to cancel.
 	var transaction models.StockTransaction
 	err := collection.FindOne(context.Background(), bson.M{"stock_tx_id": stockTxID}).Decode(&transaction)
 	if err != nil {
 		return err
 	}
-	if transaction.OrderStatus != "IN_PROGRESS" && transaction.OrderStatus != "PARTIALLY_FULFILLED" {
+	if transaction.OrderStatus != "IN_PROGRESS" && transaction.OrderStatus != "PARTIAL_FULFILLED" {
 		_, err := collection.UpdateOne(context.Background(), bson.M{"stock_tx_id": stockTxID}, bson.M{"$set": bson.M{"order_status": "CANCELLED"}})
 		if err != nil {
 			return err
