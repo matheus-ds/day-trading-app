@@ -20,7 +20,7 @@ const WalletTransactions = () => {
         const data = await api.getWalletTransactions();
         setErr(!data.success);
         if (data.success) {
-          setVal(data.data);
+          setVal(data.data ?? []);
         } else {
             setVal(data.data.error);
         }

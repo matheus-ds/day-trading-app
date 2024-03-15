@@ -18,7 +18,7 @@ const Balance = () => {
         const data = await api.getWalletBalance();
         setErr(!data.success);
         if (data.success) {
-            setVal(data.data.balance);
+            setVal(data.data.balance ?? []);
         } else {
           setVal(data.data.error);
         }

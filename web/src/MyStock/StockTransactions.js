@@ -20,7 +20,7 @@ const StockTransactions = () => {
         const data = await api.getStockTransactions();
         setErr(!data.success);
         if (data.success) {
-          setVal(data.data);
+          setVal(data.data ?? []);
         } else {
             setVal(data.data.error);
         }

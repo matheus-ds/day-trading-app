@@ -7,7 +7,7 @@ export function hello(){
 }
 
 export function setToken(tk){
-    window.token = 'Basic ' + tk
+    window.token = tk
 }
 
 
@@ -36,35 +36,34 @@ export async function register(username, name, password) {
             name: name
         }
     };
-
-    return (await axios(options)).data;
+    var pot = await axios(options)
+    return pot.data;
 }
 
 export async function getWalletBalance() {
-    console.log("------------------")
-    console.log(window.token);
     let options = {
         method: 'GET',
         url: baseURL + 'getWalletBalance',
         headers: {
-            'Authorization': window.token
+            token : window.token
         }
     };
     //await new Promise(resolve => setTimeout(resolve, 10000));
     // return await 
     //     '{"success":true, "message":"sorry", "data":{"balance": 100}}'
     // );
-    console.log(options);
-    return await axios(options).data;
+    var pot = await axios(options)
+    return pot.data;
 }
 
 
 export async function getWalletTransactions() {
+    console.log(window.token);
     let options = {
         method: 'GET',
         url: baseURL + 'getWalletTransactions',
         headers: {
-            'Authorization': window.token
+            token : window.token
         }
     };
     // await new Promise(resolve => setTimeout(resolve, 5000));
@@ -78,6 +77,7 @@ export async function getWalletTransactions() {
     //     "time_stamp":"2024-01-12T14:13:25.019+00:00"}], "message": "sorry"}`
     // );
     var pot = await axios(options)
+
     return pot.data;
 }
 
@@ -87,7 +87,7 @@ export async function addMoneyToWallet(amount) {
         method: 'POST',
         url: baseURL + 'addMoneyToWallet',
         headers: {
-            'Authorization': window.token
+            token : window.token
         },
         data: {
             amount: amount
@@ -97,7 +97,8 @@ export async function addMoneyToWallet(amount) {
     // return await 
     //     '{"success":true, "data":null}'
     // );
-    return await axios(options).data;
+    var pot = await axios(options)
+    return pot.data;
 }
 
 export async function getStockTransactions(amount) {
@@ -105,7 +106,7 @@ export async function getStockTransactions(amount) {
         method: 'GET',
         url: baseURL + 'getStockTransactions',
         headers: {
-            'Authorization': window.token
+            token : window.token
         },
         data: {
             amount: amount
@@ -121,7 +122,8 @@ export async function getStockTransactions(amount) {
 // "stock_price":50,"quantity":2,"parent_tx_id": null,
 // "time_stamp":"2024-01-12T15:03:25.019+00:00"}]}`
 //     );
-    return await axios(options).data;
+    var pot = await axios(options)
+    return pot.data;
 }
 
 export async function getStockPrices(amount) {
@@ -129,7 +131,7 @@ export async function getStockPrices(amount) {
         method: 'GET',
         url: baseURL + 'getStockPrices',
         headers: {
-            'Authorization': window.token
+            token : window.token
         },
         data: {
             amount: amount
@@ -144,7 +146,8 @@ export async function getStockPrices(amount) {
     //     "current_price": 200}]}
     //     `
     // );
-    return await axios(options).data;
+    var pot = await axios(options)
+    return pot.data;
 }
 
 export async function getStockPortfolio(amount) {
@@ -152,7 +155,7 @@ export async function getStockPortfolio(amount) {
         method: 'GET',
         url: baseURL + 'getStockPortfolio',
         headers: {
-            'Authorization': window.token
+            token : window.token
         },
         data: {
             amount: amount
@@ -168,7 +171,8 @@ export async function getStockPortfolio(amount) {
     //     "quantity_owned":150}]
     //         }
     // `);
-    return await axios(options).data;
+    var pot = await axios(options)
+    return pot.data;
 }
 
 
@@ -177,7 +181,7 @@ export async function placeStockOrder(id, type, quantity, price) {
         method: 'POST',
         url: baseURL + 'placeStockOrder',
         headers: {
-            'Authorization': window.token
+            token : window.token
         },
         data: {stock_id:id,is_buy:true,order_type: type,
         quantity:quantity,
@@ -187,7 +191,8 @@ export async function placeStockOrder(id, type, quantity, price) {
     // return await 
     //     '{"success":true,"message":"nope", "data":null}'
     // );
-    return await axios(options).data;
+    var pot = await axios(options)
+    return pot.data;
 }
 
 export async function cancelStock(id) {
@@ -195,7 +200,7 @@ export async function cancelStock(id) {
         method: 'POST',
         url: baseURL + 'cancelStock',
         headers: {
-            'Authorization': window.token
+            token : window.token
         },
         data: {
             stock_tx_id: id
@@ -205,5 +210,6 @@ export async function cancelStock(id) {
     // return await 
     //     '{"success":true, "data":null}'
     // );
-    return await axios(options).data;
+    var pot = await axios(options)
+    return pot.data;
 }

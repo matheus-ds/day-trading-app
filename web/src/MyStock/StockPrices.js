@@ -20,7 +20,7 @@ const StockPrices = () => {
         const data = await api.getStockPrices();
         setErr(!data.success);
         if (data.success) {
-          setVal(data.data);
+          setVal(data.data ?? []);
         } else {
             setVal(data.data.error);
         }
