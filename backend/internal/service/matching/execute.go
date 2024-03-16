@@ -5,13 +5,10 @@ import (
 	"errors"
 )
 
-func init() {
-	mh = store.GetMongoHandler()
-}
-
 var mh *store.MongoHandler
 
 func ExecuteOrders(txCommitQueue []StockMatch) (err error) {
+	mh = store.GetMongoHandler()
 	for _, tx := range txCommitQueue {
 		if tx.IsParent && !tx.Killed {
 			// Update stock transaction status
