@@ -54,6 +54,15 @@ func (s serviceImpl) PlaceStockOrder(userName string, stockID string, isBuy bool
 		return errors.New("market order with non-zero price")
 	}
 
+	stockPrice, err := s.db.GetStockPrice(stockID)
+	if err != nil {
+		return err
+	}
+
+	if orderType == "LIMIT" && stockPrice == 0 {
+		s.db.UpdateStockPrice(stockID, price)
+	}
+
 	balance, err := s.db.GetWalletBalance(userName)
 	if err != nil {
 		return err
@@ -76,9 +85,13 @@ func (s serviceImpl) PlaceStockOrder(userName string, stockID string, isBuy bool
 		} else {
 			// deduct stocks from user
 			newUserStockQuantity := userStocksOwned - quantity
-			err = s.db.UpdateStockToUser(userName, stockID, newUserStockQuantity)
-			if err != nil {
-				return err
+			if newUserStockQuantity == 0 {
+				s.db.DeleteStockToUser(userName, stockID)
+			} else {
+				err = s.db.UpdateStockToUser(userName, stockID, newUserStockQuantity)
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
