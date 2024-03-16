@@ -163,6 +163,27 @@ func (mh *MongoHandler) GetStockPrices() ([]models.StockPrice, error) {
 	return prices, nil
 }
 
+func (mh *MongoHandler) GetStockPrice(stockID string) (int, error) {
+	collection := mh.client.Database("day-trading-app").Collection("stocks")
+
+	var stock models.StockPrice
+	err := collection.FindOne(context.Background(), bson.M{"stock_id": stockID}).Decode(&stock)
+	if err != nil {
+		return 0, err
+	}
+	return stock.CurrentPrice, nil
+}
+
+func (mh *MongoHandler) UpdateStockPrice(stockID string, newPrice int) error {
+	collection := mh.client.Database("day-trading-app").Collection("stocks")
+
+	_, err := collection.UpdateOne(context.Background(), bson.M{"stock_id": stockID}, bson.M{"$set": bson.M{"current_price": newPrice}})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // Tested
 func (mh *MongoHandler) PlaceStockOrder(userName string, stockID string, isBuy bool, orderType string, quantity int, price int) (models.StockTransaction, error) {
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")

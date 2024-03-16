@@ -36,7 +36,9 @@ type Database interface {
 	GetStockQuantityFromUser(userName string, stockID string) (int, error)
 	GetStockPortfolio(userName string) ([]models.PortfolioItem, error)
 	GetStockTransactions() ([]models.StockTransaction, error)
-	GetStockPrices() ([]models.StockPrice, error)
+	GetStockPrices() ([]models.StockPrice, error) // get prices from all stocks in the stocks collection
+	GetStockPrice(stockID string) (int, error)    // get price of a specific stock
+	UpdateStockPrice(stockID string, newPrice int) error
 	PlaceStockOrder(userName string, stockID string, isBuy bool, orderType string, quantity int, price int) (models.StockTransaction, error)
 	UpdateStockOrder(models.StockTransaction) error //for the matching engine to update the status of the order
 	CancelStockTransaction(userName string, stockTxID string) error
