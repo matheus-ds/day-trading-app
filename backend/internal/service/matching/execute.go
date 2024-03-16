@@ -5,7 +5,11 @@ import (
 	"errors"
 )
 
-var mh = store.GetMongoHandler()
+func init() {
+	mh = store.GetMongoHandler()
+}
+
+var mh *store.MongoHandler
 
 func ExecuteOrders(txCommitQueue []StockMatch) (err error) {
 	for _, tx := range txCommitQueue {
