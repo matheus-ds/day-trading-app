@@ -49,7 +49,9 @@ func (s serviceImpl) PlaceStockOrder(userName string, stockID string, isBuy bool
 	}
 
 	if price < 0 {
-		return errors.New("invalid price")
+		return errors.New("negative price")
+	} else if orderType == "MARKET" && price != 0 {
+		return errors.New("market order with non-zero price")
 	}
 
 	balance, err := s.db.GetWalletBalance(userName)
