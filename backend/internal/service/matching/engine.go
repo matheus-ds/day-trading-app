@@ -7,6 +7,7 @@ package matching
 import (
 	"day-trading-app/backend/internal/service/models"
 	"github.com/google/uuid"
+	"log"
 	"strings"
 	"sync"
 	"time"
@@ -118,13 +119,16 @@ func createChildTx(parentTx *StockMatch, quantityTraded int, priceTraded int) St
 }
 
 // Match inserts a transaction into the matching engine, to be matched with complementary transaction(s) in its order book.
-func Match(order models.StockTransaction) {
+func Match(order models.StockTransaction) (err error) {
 	var book = getOrderbook(order)
 
 	var tx = StockMatch{Order: order, QuantityTx: 0, PriceTx: 0, CostTotalTx: 0, IsParent: false, Killed: false}
 
 	if order.OrderType == "LIMIT" {
-		expireQueue.Offer(tx)
+		err = expireQueue.Offer(tx)
+		if err != nil {
+			return err
+		}
 	}
 
 	var txCommitQueue []StockMatch
@@ -135,7 +139,8 @@ func Match(order models.StockTransaction) {
 		book.matchSell(tx, &txCommitQueue)
 	}
 
-	ExecuteOrders(txCommitQueue)
+	err = ExecuteOrders(txCommitQueue)
+	return err
 }
 
 // matchBuy() and matchSell() are basically mirrors of each other, with "buy" and "sell" swapped.
@@ -324,7 +329,7 @@ func (book orderbook) matchSell(sellTx StockMatch, txCommitQueue *[]StockMatch) 
 
 // CancelOrder halts further activity for a limit transaction with the given stockTxID.
 // If found, the matching transaction is enqueued. Basically a deliberate premature expiration.
-func CancelOrder(order models.StockTransaction) (wasCancelled bool) {
+func CancelOrder(order models.StockTransaction) (wasCancelled bool, err error) {
 	var book = bookMap[order.StockID]
 	book.m.Lock()
 
@@ -338,9 +343,8 @@ func CancelOrder(order models.StockTransaction) (wasCancelled bool) {
 	}
 	book.m.Unlock()
 
-	ExecuteOrders(txCommitQueue)
-
-	return wasCancelled
+	err = ExecuteOrders(txCommitQueue)
+	return wasCancelled, err
 }
 
 // cancelBuyOrder() and cancelSellOrder() are mirrors of each other, with "buy" and "sell" swapped.
@@ -374,7 +378,10 @@ func FlushExpired() {
 		var oldest, _ = expireQueue.Peek()
 		if isExpired(oldest) {
 			oldest, _ = expireQueue.Get()
-			CancelOrder(oldest.Order)
+			_, err := CancelOrder(oldest.Order)
+			if err != nil {
+				log.Println(err)
+			}
 		} else {
 			allFresh = true
 		}

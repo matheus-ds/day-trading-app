@@ -82,7 +82,7 @@ func (s serviceImpl) PlaceStockOrder(userName string, stockID string, isBuy bool
 	}
 
 	transaction, err := s.db.PlaceStockOrder(userName, stockID, isBuy, orderType, quantity, price)
-	matching.Match(transaction)
+	err = matching.Match(transaction)
 
 	return err
 }
@@ -102,8 +102,10 @@ func (s serviceImpl) CancelStockTransaction(userName string, stockTxID string) e
 			} else if time.Now().UnixNano() >= item.TimeStamp+(15*time.Minute).Nanoseconds() {
 				return errors.New("cannot cancel an expired transaction")
 			} else {
-				wasCancelled := matching.CancelOrder(item)
-				if !wasCancelled {
+				wasCancelled, err := matching.CancelOrder(item)
+				if err != nil {
+					return err
+				} else if !wasCancelled {
 					return errors.New("cannot cancel transaction; was not found in matching engine")
 				} else {
 					return nil
