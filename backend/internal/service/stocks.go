@@ -67,12 +67,19 @@ func (s serviceImpl) PlaceStockOrder(userName string, stockID string, isBuy bool
 		newBalance = balance - quantity*price
 	} else {
 		// check if user has enough stock to sell
-		stock, err := s.getStockFromUser(userName, stockID)
+		userStocksOwned, err := s.db.GetStockQuantityFromUser(userName, stockID)
 		if err != nil {
 			return err
 		}
-		if stock.Quantity < quantity {
+		if userStocksOwned < quantity {
 			return errors.New("insufficient stock quantity")
+		} else {
+			// deduct stocks from user
+			newUserStockQuantity := userStocksOwned - quantity
+			err = s.db.UpdateStockToUser(userName, stockID, newUserStockQuantity)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
