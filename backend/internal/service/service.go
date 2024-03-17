@@ -39,7 +39,7 @@ type Database interface {
 	GetStockPrices() ([]models.StockPrice, error) // get prices from all stocks in the stocks collection
 	GetStockPrice(stockID string) (int, error)    // get price of a specific stock
 	UpdateStockPrice(stockID string, newPrice int) error
-	PlaceStockOrder(userName string, stockID string, isBuy bool, orderType string, quantity int, price int) (models.StockTransaction, error)
+	PlaceStockOrder(userName string, stockID string, isBuy bool, orderType string, quantity int, price int, stockTxID string, walletTxID string) (models.StockTransaction, error)
 	UpdateStockOrder(models.StockTransaction) error //for the matching engine to update the status of the order
 	CancelStockTransaction(userName string, stockTxID string) error
 
@@ -47,7 +47,7 @@ type Database interface {
 	SetWalletBalance(userName string, newBalance int) error
 	GetWalletBalance(userName string) (int, error)
 	GetWalletTransactions(userName string) ([]models.WalletTransaction, error)
-	AddWalletTransaction(userName string, walletTxID string, stockID string, is_debit bool, amount int, timeStamp int64) error
+	AddWalletTransaction(userName string, walletTxID string, stockTxID string, is_debit bool, amount int, timeStamp int64) error
 	DeleteWalletTransaction(userName string, walletTxID string) error
 }
 

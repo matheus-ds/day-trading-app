@@ -185,27 +185,25 @@ func (mh *MongoHandler) UpdateStockPrice(stockID string, newPrice int) error {
 }
 
 // Tested
-func (mh *MongoHandler) PlaceStockOrder(userName string, stockID string, isBuy bool, orderType string, quantity int, price int) (models.StockTransaction, error) {
+func (mh *MongoHandler) PlaceStockOrder(userName string, stockID string, isBuy bool, orderType string, quantity int, price int, stockTxID string, walletTxID string) (models.StockTransaction, error) {
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
-	// add string "Tx" inbetween stockID's name, for example, "googleStockId" becomes "googleStockTxId"
-	index := strings.Index(stockID, "Stock")
-	stockTxID := stockID[:index+len("Stock")] + "Tx" + stockID[index+len("Stock"):] + uuid.New().String()
-	// replace "StockId" with "WalletTxId" in stockID
-	walletTxID := strings.Replace(stockID, "StockId", "WalletTxId", 1)
 
-	//Uncomment this line and comment the above line for production
 	transaction := models.StockTransaction{
 		UserName:        userName,
 		StockTxID:       stockTxID,
 		ParentStockTxID: nil, // ParentStockTxID is nil for the first transaction
 		StockID:         stockID,
-		WalletTxID:      walletTxID,    // WalletTxID
+		WalletTxID:      nil,
 		OrderStatus:     "IN_PROGRESS", // initial status of the order is "IN_PROGRESS" needs to be updated to "COMPLETED" or "CANCELLED" later
 		IsBuy:           isBuy,
 		OrderType:       orderType,
 		StockPrice:      price,
 		Quantity:        quantity,
 		TimeStamp:       time.Now().UnixNano(), // Use the current time as the timestamp
+	}
+
+	if walletTxID != "" {
+		transaction.WalletTxID = &walletTxID
 	}
 
 	// Insert the new stock transaction into the collection
@@ -218,7 +216,6 @@ func (mh *MongoHandler) PlaceStockOrder(userName string, stockID string, isBuy b
 
 // Tested
 func (mh *MongoHandler) UpdateStockOrder(models.StockTransaction) error {
-	// UpdateStockOrder updates the status of a stock transaction with the given stockTxID to have the status "COMPLETED" or "PARTIAL_FULFILLED"
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 	// update the stock transaction by stockTxID and replace it with models.StockTransaction
 

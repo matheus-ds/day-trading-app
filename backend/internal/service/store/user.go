@@ -102,14 +102,13 @@ func (mh *MongoHandler) SetWalletBalance(userName string, newBalance int) error 
 	return nil
 }
 
-
 // Tested.
-func (mh *MongoHandler) AddWalletTransaction(userName string, walletTxID string, stockID string, is_debit bool, amount int, timeStamp int64) error {
+func (mh *MongoHandler) AddWalletTransaction(userName string, walletTxID string, stockTxID string, is_debit bool, amount int, timeStamp int64) error {
 
 	var walletTx models.WalletTransaction = models.WalletTransaction{
 		UserName:   userName,
 		WalletTxID: walletTxID,
-		StockID:    stockID,
+		StockTxID:  stockTxID,
 		Is_debit:   is_debit,
 		Amount:     amount,
 		TimeStamp:  timeStamp,
@@ -141,7 +140,6 @@ func (mh *MongoHandler) AddWalletTransaction(userName string, walletTxID string,
 	}
 	return nil
 }
-
 
 // Tested.
 func (mh *MongoHandler) DeleteWalletTransaction(userName string, walletTxID string) error {

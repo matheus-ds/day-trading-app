@@ -3,6 +3,8 @@ package matching
 import (
 	"day-trading-app/backend/internal/service/store"
 	"errors"
+	"strings"
+	"time"
 )
 
 var mh *store.MongoHandler
@@ -41,7 +43,7 @@ func executeBuy(tx StockMatch) (err error) {
 		}
 
 		// Delete wallet transaction
-		err = mh.DeleteWalletTransaction(tx.Order.UserName, tx.Order.WalletTxID)
+		err = mh.DeleteWalletTransaction(tx.Order.UserName, *tx.Order.WalletTxID)
 		if err != nil {
 			return err
 		}
@@ -56,7 +58,7 @@ func executeBuy(tx StockMatch) (err error) {
 		}
 
 		// Delete wallet transaction
-		err = mh.DeleteWalletTransaction(tx.Order.UserName, tx.Order.WalletTxID)
+		err = mh.DeleteWalletTransaction(tx.Order.UserName, *tx.Order.WalletTxID)
 		if err != nil {
 			return err
 		}
@@ -79,7 +81,13 @@ func executeBuy(tx StockMatch) (err error) {
 
 		if tx.Order.ParentStockTxID != nil { // child
 			// Add child tx to db
-			_, err = mh.PlaceStockOrder(tx.Order.UserName, tx.Order.StockID, tx.Order.IsBuy, tx.Order.OrderType, tx.Order.Quantity, tx.Order.StockPrice)
+			err = mh.AddWalletTransaction(tx.Order.UserName, *tx.Order.WalletTxID, tx.Order.StockTxID, tx.Order.IsBuy, tx.CostTotalTx, time.Now().UnixNano())
+			if err != nil {
+				return err
+			}
+			// todo should this change user wallet?
+
+			_, err = mh.PlaceStockOrder(tx.Order.UserName, tx.Order.StockID, tx.Order.IsBuy, tx.Order.OrderType, tx.Order.Quantity, tx.Order.StockPrice, tx.Order.StockTxID, *tx.Order.WalletTxID)
 			if err != nil {
 				return err
 			}
@@ -140,22 +148,13 @@ func executeSell(tx StockMatch) (err error) {
 		}
 
 	} else if tx.Order.OrderStatus == "COMPLETED" {
-		// Add money to wallet
-		walletBalance, _ := mh.GetWalletBalance(tx.Order.UserName)
-		err = mh.SetWalletBalance(tx.Order.UserName, walletBalance+tx.CostTotalTx)
-		if err != nil {
-			return err
-		}
-
-		// Insert wallet transaction
-		err = mh.DeleteWalletTransaction(tx.Order.UserName, tx.Order.WalletTxID)
-		if err != nil {
-			return err
-		}
+		var walletTxID string
 
 		if tx.Order.ParentStockTxID != nil { // child
+			walletTxID = *tx.Order.WalletTxID
+
 			// Add child tx to db
-			_, err = mh.PlaceStockOrder(tx.Order.UserName, tx.Order.StockID, tx.Order.IsBuy, tx.Order.OrderType, tx.Order.Quantity, tx.Order.StockPrice)
+			_, err = mh.PlaceStockOrder(tx.Order.UserName, tx.Order.StockID, tx.Order.IsBuy, tx.Order.OrderType, tx.Order.Quantity, tx.Order.StockPrice, tx.Order.StockTxID, *tx.Order.WalletTxID)
 			if err != nil {
 				return err
 			}
@@ -163,18 +162,37 @@ func executeSell(tx StockMatch) (err error) {
 			if err != nil {
 				return err
 			}
-		} else if tx.IsParent {
-			// Update stock transaction status to completed
-			err = mh.UpdateStockOrder(tx.Order)
-			if err != nil {
-				return err
-			}
 		} else {
-			tx.Order.StockPrice = tx.PriceTx
-			err = mh.UpdateStockOrder(tx.Order)
-			if err != nil {
+			if tx.IsParent {
+				// Update stock transaction status to completed
+				err = mh.UpdateStockOrder(tx.Order)
+				if err != nil {
+					return err
+				}
 				return err
+			} else {
+				walletTxID = strings.Replace(tx.Order.StockTxID, "StockTxId", "WalletTxId", 1)
+				tx.Order.WalletTxID = &walletTxID
+
+				tx.Order.StockPrice = tx.PriceTx
+				err = mh.UpdateStockOrder(tx.Order)
+				if err != nil {
+					return err
+				}
 			}
+		}
+
+		// Add money to wallet
+		walletBalance, _ := mh.GetWalletBalance(tx.Order.UserName)
+		err = mh.SetWalletBalance(tx.Order.UserName, walletBalance+tx.CostTotalTx)
+		if err != nil {
+			return err
+		}
+
+		// Insert wallet transaction //
+		err = mh.AddWalletTransaction(tx.Order.UserName, walletTxID, tx.Order.StockTxID, tx.Order.IsBuy, tx.CostTotalTx, time.Now().UnixNano())
+		if err != nil {
+			return err
 		}
 
 	} else if tx.Order.OrderStatus == "" {

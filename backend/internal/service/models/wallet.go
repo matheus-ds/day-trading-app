@@ -1,10 +1,10 @@
 package models
 
 type WalletTransaction struct {
-	UserName   string `json:"userName"     bson:"user_name"`
-	WalletTxID string `json:"walletTxId"   bson:"wallet_tx_id"`
-	StockID    string `json:"stockId"       bson:"stock_id"`
-	Is_debit   bool   `json:"isDebit"       bson:"is_debit"`
+	UserName   string `json:"user_name"     bson:"user_name"`
+	WalletTxID string `json:"wallet_tx_id"   bson:"wallet_tx_id"`
+	StockTxID  string `json:"stock_tx_id"       bson:"stock_tx_id"`
+	Is_debit   bool   `json:"is_debit"       bson:"is_debit"`
 	Amount     int    `json:"amount"       bson:"amount"`
-	TimeStamp  int64  `json:"timeStamp"    bson:"time_stamp"`
+	TimeStamp  int64  `json:"time_stamp"    bson:"time_stamp"`
 }

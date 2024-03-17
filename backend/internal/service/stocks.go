@@ -3,6 +3,8 @@ package service
 import (
 	"day-trading-app/backend/internal/service/matching"
 	"errors"
+	"github.com/google/uuid"
+	"strings"
 	"time"
 
 	"day-trading-app/backend/internal/service/models"
@@ -96,16 +98,28 @@ func (s serviceImpl) PlaceStockOrder(userName string, stockID string, isBuy bool
 		}
 	}
 
+	// add string "Tx" inbetween stockID's name, for example, "googleStockId" becomes "googleStockTxId"
+	index := strings.Index(stockID, "Stock")
+	stockTxID := stockID[:index+len("Stock")] + "Tx" + stockID[index+len("Stock"):] + uuid.New().String()
+	walletTxID := ""
+	if isBuy {
+		walletTxID = strings.Replace(stockTxID, "StockTxId", "WalletTxId", 1)
+	}
+
 	if balance != newBalance {
 		err = s.db.SetWalletBalance(userName, newBalance)
 		if err != nil {
 			return err
 		}
+
+		err = s.db.AddWalletTransaction(userName, walletTxID, stockTxID, isBuy, quantity*price, time.Now().UnixNano())
+		if err != nil {
+			return err
+		}
 	}
 
-	transaction, err := s.db.PlaceStockOrder(userName, stockID, isBuy, orderType, quantity, price)
+	transaction, err := s.db.PlaceStockOrder(userName, stockID, isBuy, orderType, quantity, price, stockTxID, walletTxID)
 	err = matching.Match(transaction)
-
 	return err
 }
 

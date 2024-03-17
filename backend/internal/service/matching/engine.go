@@ -113,6 +113,13 @@ func createChildTx(parentTx *StockMatch, quantityTraded int, priceTraded int) St
 	childTx.Order.TimeStamp = time.Now().Unix()
 	childTx.Order.OrderStatus = "COMPLETED"
 
+	// add string "Tx" inbetween stockID's name, for example, "googleStockId" becomes "googleStockTxId"
+	index := strings.Index(childTx.Order.StockID, "Stock")
+	childTx.Order.StockTxID = childTx.Order.StockID[:index+len("Stock")] + "Tx" + childTx.Order.StockID[index+len("Stock"):] + uuid.New().String()
+
+	walletTxID := strings.Replace(childTx.Order.StockTxID, "StockTxId", "WalletTxId", 1)
+	childTx.Order.WalletTxID = &walletTxID
+
 	parentTx.IsParent = true
 	parentTx.CostTotalTx += quantityTraded * priceTraded
 	return childTx
