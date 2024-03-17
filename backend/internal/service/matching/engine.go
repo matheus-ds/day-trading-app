@@ -7,6 +7,7 @@ package matching
 import (
 	"day-trading-app/backend/internal/service/models"
 	"github.com/google/uuid"
+	"log"
 	"strings"
 	"sync"
 	"time"
@@ -112,19 +113,29 @@ func createChildTx(parentTx *StockMatch, quantityTraded int, priceTraded int) St
 	childTx.Order.TimeStamp = time.Now().Unix()
 	childTx.Order.OrderStatus = "COMPLETED"
 
+	// add string "Tx" inbetween stockID's name, for example, "googleStockId" becomes "googleStockTxId"
+	index := strings.Index(childTx.Order.StockID, "Stock")
+	childTx.Order.StockTxID = childTx.Order.StockID[:index+len("Stock")] + "Tx" + childTx.Order.StockID[index+len("Stock"):] + uuid.New().String()
+
+	walletTxID := strings.Replace(childTx.Order.StockTxID, "StockTxId", "WalletTxId", 1)
+	childTx.Order.WalletTxID = &walletTxID
+
 	parentTx.IsParent = true
 	parentTx.CostTotalTx += quantityTraded * priceTraded
 	return childTx
 }
 
 // Match inserts a transaction into the matching engine, to be matched with complementary transaction(s) in its order book.
-func Match(order models.StockTransaction) {
+func Match(order models.StockTransaction) (err error) {
 	var book = getOrderbook(order)
 
 	var tx = StockMatch{Order: order, QuantityTx: 0, PriceTx: 0, CostTotalTx: 0, IsParent: false, Killed: false}
 
 	if order.OrderType == "LIMIT" {
-		expireQueue.Offer(tx)
+		err = expireQueue.Offer(tx)
+		if err != nil {
+			return err
+		}
 	}
 
 	var txCommitQueue []StockMatch
@@ -135,7 +146,8 @@ func Match(order models.StockTransaction) {
 		book.matchSell(tx, &txCommitQueue)
 	}
 
-	ExecuteOrders(txCommitQueue)
+	err = ExecuteOrders(txCommitQueue)
+	return err
 }
 
 // matchBuy() and matchSell() are basically mirrors of each other, with "buy" and "sell" swapped.
@@ -205,7 +217,7 @@ func (book orderbook) matchBuy(buyTx StockMatch, txCommitQueue *[]StockMatch) {
 						buyTx.CostTotalTx += buyQuantityRemaining * lowestSellTx.Order.StockPrice
 					}
 
-					lowestSellTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
+					lowestSellTx.Order.OrderStatus = "PARTIAL_FULFILLED"
 					var sellChildTx = createChildTx(&lowestSellTx, buyQuantityRemaining, lowestSellTx.Order.StockPrice)
 					*txCommitQueue = append(*txCommitQueue, sellChildTx)
 
@@ -219,7 +231,7 @@ func (book orderbook) matchBuy(buyTx StockMatch, txCommitQueue *[]StockMatch) {
 		if buyTx.QuantityTx == 0 {
 			//buyTx.Order.OrderStatus = "IN_PROGRESS"
 		} else if buyQuantityRemaining > 0 {
-			buyTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
+			buyTx.Order.OrderStatus = "PARTIAL_FULFILLED"
 		} else { // = 0
 			buyTx.Order.OrderStatus = "COMPLETED"
 		}
@@ -295,7 +307,7 @@ func (book orderbook) matchSell(sellTx StockMatch, txCommitQueue *[]StockMatch) 
 						sellTx.CostTotalTx += sellQuantityRemaining * highestBuyTx.Order.StockPrice
 					}
 
-					highestBuyTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
+					highestBuyTx.Order.OrderStatus = "PARTIAL_FULFILLED"
 					var buyChildTx = createChildTx(&highestBuyTx, sellQuantityRemaining, highestBuyTx.Order.StockPrice)
 					*txCommitQueue = append(*txCommitQueue, buyChildTx)
 
@@ -309,7 +321,7 @@ func (book orderbook) matchSell(sellTx StockMatch, txCommitQueue *[]StockMatch) 
 		if sellTx.QuantityTx == 0 {
 			//buyTx.Order.OrderStatus = "IN_PROGRESS"
 		} else if sellQuantityRemaining > 0 {
-			sellTx.Order.OrderStatus = "PARTIALLY_FULFILLED"
+			sellTx.Order.OrderStatus = "PARTIAL_FULFILLED"
 		} else { // = 0
 			sellTx.Order.OrderStatus = "COMPLETED"
 		}
@@ -324,7 +336,7 @@ func (book orderbook) matchSell(sellTx StockMatch, txCommitQueue *[]StockMatch) 
 
 // CancelOrder halts further activity for a limit transaction with the given stockTxID.
 // If found, the matching transaction is enqueued. Basically a deliberate premature expiration.
-func CancelOrder(order models.StockTransaction) (wasCancelled bool) {
+func CancelOrder(order models.StockTransaction) (wasCancelled bool, err error) {
 	var book = bookMap[order.StockID]
 	book.m.Lock()
 
@@ -338,9 +350,8 @@ func CancelOrder(order models.StockTransaction) (wasCancelled bool) {
 	}
 	book.m.Unlock()
 
-	ExecuteOrders(txCommitQueue)
-
-	return wasCancelled
+	err = ExecuteOrders(txCommitQueue)
+	return wasCancelled, err
 }
 
 // cancelBuyOrder() and cancelSellOrder() are mirrors of each other, with "buy" and "sell" swapped.
@@ -374,7 +385,10 @@ func FlushExpired() {
 		var oldest, _ = expireQueue.Peek()
 		if isExpired(oldest) {
 			oldest, _ = expireQueue.Get()
-			CancelOrder(oldest.Order)
+			_, err := CancelOrder(oldest.Order)
+			if err != nil {
+				log.Println(err)
+			}
 		} else {
 			allFresh = true
 		}

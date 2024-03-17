@@ -1,7 +1,11 @@
 package service
 
 import (
+	"day-trading-app/backend/internal/service/matching"
 	"errors"
+	"github.com/google/uuid"
+	"strings"
+	"time"
 
 	"day-trading-app/backend/internal/service/models"
 )
@@ -46,8 +50,19 @@ func (s serviceImpl) PlaceStockOrder(userName string, stockID string, isBuy bool
 		return errors.New("invalid quantity")
 	}
 
-	if price <= 0 {
-		return errors.New("invalid price")
+	if price < 0 {
+		return errors.New("negative price")
+	} else if orderType == "MARKET" && price != 0 {
+		return errors.New("market order with non-zero price")
+	}
+
+	stockPrice, err := s.db.GetStockPrice(stockID)
+	if err != nil {
+		return err
+	}
+
+	if orderType == "LIMIT" && stockPrice == 0 {
+		s.db.UpdateStockPrice(stockID, price)
 	}
 
 	balance, err := s.db.GetWalletBalance(userName)
@@ -63,13 +78,32 @@ func (s serviceImpl) PlaceStockOrder(userName string, stockID string, isBuy bool
 		newBalance = balance - quantity*price
 	} else {
 		// check if user has enough stock to sell
-		stock, err := s.getStockFromUser(userName, stockID)
+		userStocksOwned, err := s.db.GetStockQuantityFromUser(userName, stockID)
 		if err != nil {
 			return err
 		}
-		if stock.Quantity < quantity {
+		if userStocksOwned < quantity {
 			return errors.New("insufficient stock quantity")
+		} else {
+			// deduct stocks from user
+			newUserStockQuantity := userStocksOwned - quantity
+			if newUserStockQuantity == 0 {
+				s.db.DeleteStockToUser(userName, stockID)
+			} else {
+				err = s.db.UpdateStockToUser(userName, stockID, newUserStockQuantity)
+				if err != nil {
+					return err
+				}
+			}
 		}
+	}
+
+	// add string "Tx" inbetween stockID's name, for example, "googleStockId" becomes "googleStockTxId"
+	index := strings.Index(stockID, "Stock")
+	stockTxID := stockID[:index+len("Stock")] + "Tx" + stockID[index+len("Stock"):] + uuid.New().String()
+	walletTxID := ""
+	if isBuy {
+		walletTxID = strings.Replace(stockTxID, "StockTxId", "WalletTxId", 1)
 	}
 
 	if balance != newBalance {
@@ -77,11 +111,16 @@ func (s serviceImpl) PlaceStockOrder(userName string, stockID string, isBuy bool
 		if err != nil {
 			return err
 		}
+
+		err = s.db.AddWalletTransaction(userName, walletTxID, stockTxID, isBuy, quantity*price, time.Now().UnixNano())
+		if err != nil {
+			return err
+		}
 	}
 
-	// TODO: call matching engine to place the order
-
-	return s.db.PlaceStockOrder(userName, stockID, isBuy, orderType, quantity, price)
+	transaction, err := s.db.PlaceStockOrder(userName, stockID, isBuy, orderType, quantity, price, stockTxID, walletTxID)
+	err = matching.Match(transaction)
+	return err
 }
 
 func (s serviceImpl) CancelStockTransaction(userName string, stockTxID string) error {
@@ -92,10 +131,22 @@ func (s serviceImpl) CancelStockTransaction(userName string, stockTxID string) e
 
 	for _, item := range txs {
 		if item.UserName == userName && item.StockTxID == stockTxID {
-			if item.OrderStatus != "COMPLETED" {
+			if item.OrderType == "MARKET" {
+				return errors.New("cannot cancel a market transaction")
+			} else if item.OrderStatus != "COMPLETED" {
 				return errors.New("cannot cancel a completed transaction")
+			} else if time.Now().UnixNano() >= item.TimeStamp+(15*time.Minute).Nanoseconds() {
+				return errors.New("cannot cancel an expired transaction")
+			} else {
+				wasCancelled, err := matching.CancelOrder(item)
+				if err != nil {
+					return err
+				} else if !wasCancelled {
+					return errors.New("cannot cancel transaction; was not found in matching engine")
+				} else {
+					return nil
+				}
 			}
-			return s.db.CancelStockTransaction(userName, stockTxID)
 		}
 	}
 	return errors.New("stock transaction not found for given user")
