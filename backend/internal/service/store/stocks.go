@@ -215,11 +215,10 @@ func (mh *MongoHandler) PlaceStockOrder(userName string, stockID string, isBuy b
 }
 
 // Tested
-func (mh *MongoHandler) UpdateStockOrder(models.StockTransaction) error {
+func (mh *MongoHandler) UpdateStockOrder(stockTransaction models.StockTransaction) error {
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 	// update the stock transaction by stockTxID and replace it with models.StockTransaction
 
-	var stockTransaction models.StockTransaction
 	_, err := collection.ReplaceOne(context.Background(), bson.M{"stock_tx_id": stockTransaction.StockTxID}, stockTransaction)
 	if err != nil {
 		return err
