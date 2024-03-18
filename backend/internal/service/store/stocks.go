@@ -105,7 +105,7 @@ func (mh *MongoHandler) GetStockPortfolio(userName string) ([]models.PortfolioIt
 }
 
 // Tested
-func (mh *MongoHandler) GetStockTransactions() ([]models.StockTransaction, error) {
+func (mh *MongoHandler) GetStockTransactions(userName string) ([]models.StockTransaction, error) {
 	// Access the collection where user portfolio data is stored
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 

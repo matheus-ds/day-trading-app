@@ -94,8 +94,9 @@ func (e HTTPEndpoint) GetStockPortfolio(c *gin.Context) {
 }
 
 func (e HTTPEndpoint) GetStockTransactions(c *gin.Context) {
+	userName := c.GetString("user_name")
 
-	transactions, err := e.srv.GetStockTransactions()
+	transactions, err := e.srv.GetStockTransactions(userName)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"success": false,

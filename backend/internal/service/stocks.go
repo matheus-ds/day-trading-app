@@ -33,8 +33,8 @@ func (s serviceImpl) GetStockPortfolio(userName string) ([]models.PortfolioItem,
 	return s.db.GetStockPortfolio(userName)
 }
 
-func (s serviceImpl) GetStockTransactions() ([]models.StockTransaction, error) {
-	return s.db.GetStockTransactions()
+func (s serviceImpl) GetStockTransactions(userName string) ([]models.StockTransaction, error) {
+	return s.db.GetStockTransactions(userName)
 }
 
 func (s serviceImpl) GetStockPrices() ([]models.StockPrice, error) {
@@ -134,7 +134,7 @@ func (s serviceImpl) PlaceStockOrder(userName string, stockID string, isBuy bool
 }
 
 func (s serviceImpl) CancelStockTransaction(userName string, stockTxID string) error {
-	txs, err := s.db.GetStockTransactions()
+	txs, err := s.db.GetStockTransactions(userName)
 	if err != nil {
 		return err
 	}
