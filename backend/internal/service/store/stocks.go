@@ -105,12 +105,12 @@ func (mh *MongoHandler) GetStockPortfolio(userName string) ([]models.PortfolioIt
 }
 
 // Tested
-func (mh *MongoHandler) GetStockTransactions() ([]models.StockTransaction, error) {
+func (mh *MongoHandler) GetStockTransactions(userName string) ([]models.StockTransaction, error) {
 	// Access the collection where user portfolio data is stored
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 
 	// Create a cursor for the find operation
-	cur, err := collection.Find(context.Background(), bson.M{})
+	cur, err := collection.Find(context.Background(), bson.M{"user_name": userName})
 	if err != nil {
 		return nil, err
 	}
@@ -215,11 +215,10 @@ func (mh *MongoHandler) PlaceStockOrder(userName string, stockID string, isBuy b
 }
 
 // Tested
-func (mh *MongoHandler) UpdateStockOrder(models.StockTransaction) error {
+func (mh *MongoHandler) UpdateStockOrder(stockTransaction models.StockTransaction) error {
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 	// update the stock transaction by stockTxID and replace it with models.StockTransaction
 
-	var stockTransaction models.StockTransaction
 	_, err := collection.ReplaceOne(context.Background(), bson.M{"stock_tx_id": stockTransaction.StockTxID}, stockTransaction)
 	if err != nil {
 		return err

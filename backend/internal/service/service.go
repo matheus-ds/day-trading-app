@@ -12,7 +12,7 @@ type Service interface {
 	CreateStock(stockName string) (models.StockCreated, error)
 	AddStockToUser(userName, stockID string, quantity int) error
 	GetStockPortfolio(userName string) ([]models.PortfolioItem, error)
-	GetStockTransactions() ([]models.StockTransaction, error)
+	GetStockTransactions(userName string) ([]models.StockTransaction, error)
 	GetStockPrices() ([]models.StockPrice, error)
 	PlaceStockOrder(userName, stockID string, isBuy bool, orderType string, quantity int, price int) error
 	CancelStockTransaction(userName, stockTxID string) error
@@ -35,7 +35,7 @@ type Database interface {
 	DeleteStockToUser(userName string, stockID string) error
 	GetStockQuantityFromUser(userName string, stockID string) (int, error)
 	GetStockPortfolio(userName string) ([]models.PortfolioItem, error)
-	GetStockTransactions() ([]models.StockTransaction, error)
+	GetStockTransactions(userName string) ([]models.StockTransaction, error)
 	GetStockPrices() ([]models.StockPrice, error) // get prices from all stocks in the stocks collection
 	GetStockPrice(stockID string) (int, error)    // get price of a specific stock
 	UpdateStockPrice(stockID string, newPrice int) error
