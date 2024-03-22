@@ -110,7 +110,7 @@ func (mh *MongoHandler) GetStockTransactions(userName string) ([]models.StockTra
 	collection := mh.client.Database("day-trading-app").Collection("stock_transactions")
 
 	// Create a cursor for the find operation
-	cur, err := collection.Find(context.Background(), bson.M{})
+	cur, err := collection.Find(context.Background(), bson.M{"user_name": userName})
 	if err != nil {
 		return nil, err
 	}
