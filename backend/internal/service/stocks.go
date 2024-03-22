@@ -143,7 +143,7 @@ func (s serviceImpl) CancelStockTransaction(userName string, stockTxID string) e
 		if item.UserName == userName && item.StockTxID == stockTxID {
 			if item.OrderType == "MARKET" {
 				return errors.New("cannot cancel a market transaction")
-			} else if item.OrderStatus != "COMPLETED" {
+			} else if item.OrderStatus == "COMPLETED" {
 				return errors.New("cannot cancel a completed transaction")
 			} else if time.Now().UnixNano() >= item.TimeStamp+(15*time.Minute).Nanoseconds() {
 				return errors.New("cannot cancel an expired transaction")
