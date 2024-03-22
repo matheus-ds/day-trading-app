@@ -224,6 +224,7 @@ func (book orderbook) matchBuy(buyTx StockMatch, txCommitQueue *[]StockMatch) {
 					buyQuantityRemaining = 0
 				}
 			}
+			*txCommitQueue = append(*txCommitQueue, lowestSellTx)
 		}
 
 		buyTx.QuantityTx = buyTx.Order.Quantity - buyQuantityRemaining
@@ -314,6 +315,7 @@ func (book orderbook) matchSell(sellTx StockMatch, txCommitQueue *[]StockMatch) 
 					sellQuantityRemaining = 0
 				}
 			}
+			*txCommitQueue = append(*txCommitQueue, highestBuyTx)
 		}
 
 		sellTx.QuantityTx = sellTx.Order.Quantity - sellQuantityRemaining
