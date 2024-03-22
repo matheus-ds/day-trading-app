@@ -241,7 +241,9 @@ func (book orderbook) matchBuy(buyTx StockMatch, txCommitQueue *[]StockMatch) {
 			book.buys.Set(buyTx.Order, buyTx)
 		}
 
-		*txCommitQueue = append(*txCommitQueue, buyTx)
+		if !(buyTx.Order.OrderStatus == "IN_PROGRESS" && buyTx.Order.OrderType == "LIMIT") {
+			*txCommitQueue = append(*txCommitQueue, buyTx)
+		}
 	}
 }
 
@@ -332,7 +334,9 @@ func (book orderbook) matchSell(sellTx StockMatch, txCommitQueue *[]StockMatch) 
 			book.sells.Set(sellTx.Order, sellTx)
 		}
 
-		*txCommitQueue = append(*txCommitQueue, sellTx)
+		if !(sellTx.Order.OrderStatus == "IN_PROGRESS" && sellTx.Order.OrderType == "LIMIT") {
+			*txCommitQueue = append(*txCommitQueue, sellTx)
+		}
 	}
 }
 
