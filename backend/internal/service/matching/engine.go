@@ -228,6 +228,7 @@ func (book orderbook) matchBuy(buyTx StockMatch, txCommitQueue *[]StockMatch) {
 					}
 
 					lowestSellTx.Order.OrderStatus = "PARTIAL_FULFILLED"
+					book.sells.Set(makeBookKey(lowestSellTx.Order), lowestSellTx)
 					var sellChildTx = createChildTx(&lowestSellTx, buyQuantityRemaining, lowestSellTx.Order.StockPrice)
 					*txCommitQueue = append(*txCommitQueue, sellChildTx)
 
@@ -319,6 +320,7 @@ func (book orderbook) matchSell(sellTx StockMatch, txCommitQueue *[]StockMatch) 
 					}
 
 					highestBuyTx.Order.OrderStatus = "PARTIAL_FULFILLED"
+					book.buys.Set(makeBookKey(highestBuyTx.Order), highestBuyTx)
 					var buyChildTx = createChildTx(&highestBuyTx, sellQuantityRemaining, highestBuyTx.Order.StockPrice)
 					*txCommitQueue = append(*txCommitQueue, buyChildTx)
 
