@@ -109,6 +109,10 @@ func executeBuy(tx StockMatch) (err error) {
 			}
 		}
 
+		err = mh.UpdateStockPrice(tx.Order.StockID, tx.Order.StockPrice)
+		if err != nil {
+			return err
+		}
 	} else if tx.Order.OrderStatus == "" {
 		return errors.New("order status is empty string")
 	} else {
@@ -195,6 +199,10 @@ func executeSell(tx StockMatch) (err error) {
 			return err
 		}
 
+		err = mh.UpdateStockPrice(tx.Order.StockID, tx.Order.StockPrice)
+		if err != nil {
+			return err
+		}
 	} else if tx.Order.OrderStatus == "" {
 		return errors.New("order status is empty string")
 	} else {
