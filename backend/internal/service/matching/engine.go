@@ -273,7 +273,7 @@ func (book orderbook) matchSell(sellTx StockMatch, txCommitQueue *[]StockMatch) 
 				book.buys.Delete(highestBuyTx.Order)
 				*txCommitQueue = append(*txCommitQueue, highestBuyTx)
 			} else {
-				if (sellTx.Order.OrderType == "LIMIT") && (sellTx.Order.StockPrice < highestBuyTx.Order.StockPrice) {
+				if (sellTx.Order.OrderType == "LIMIT") && (sellTx.Order.StockPrice > highestBuyTx.Order.StockPrice) {
 					break
 				}
 
