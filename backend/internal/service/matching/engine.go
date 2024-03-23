@@ -190,7 +190,6 @@ func (book orderbook) matchBuy(buyTx StockMatch, txCommitQueue *[]StockMatch) {
 
 			if isExpired(lowestSellTx) {
 				book.sells.Delete(makeBookKey(lowestSellTx.Order))
-				*txCommitQueue = append(*txCommitQueue, lowestSellTx)
 			} else {
 				if (buyTx.Order.OrderType == "LIMIT") && (buyTx.Order.StockPrice < lowestSellTx.Order.StockPrice) {
 					break
@@ -217,7 +216,6 @@ func (book orderbook) matchBuy(buyTx StockMatch, txCommitQueue *[]StockMatch) {
 					lowestSellTx.QuantityTx = lowestSellTx.Order.Quantity - sellQuantityRemaining
 					lowestSellTx.CostTotalTx += sellQuantityRemaining * lowestSellTx.Order.StockPrice
 					lowestSellTx.Order.OrderStatus = "COMPLETED"
-					*txCommitQueue = append(*txCommitQueue, lowestSellTx)
 
 					buyQuantityRemaining -= sellQuantityRemaining
 				} else { // buyQuantityRemaining < sellQuantityRemaining
@@ -283,7 +281,6 @@ func (book orderbook) matchSell(sellTx StockMatch, txCommitQueue *[]StockMatch) 
 
 			if isExpired(highestBuyTx) {
 				book.buys.Delete(makeBookKey(highestBuyTx.Order))
-				*txCommitQueue = append(*txCommitQueue, highestBuyTx)
 			} else {
 				if (sellTx.Order.OrderType == "LIMIT") && (sellTx.Order.StockPrice > highestBuyTx.Order.StockPrice) {
 					break
@@ -310,7 +307,6 @@ func (book orderbook) matchSell(sellTx StockMatch, txCommitQueue *[]StockMatch) 
 					highestBuyTx.QuantityTx = highestBuyTx.Order.Quantity - buyQuantityRemaining
 					highestBuyTx.CostTotalTx += buyQuantityRemaining * highestBuyTx.Order.StockPrice
 					highestBuyTx.Order.OrderStatus = "COMPLETED"
-					*txCommitQueue = append(*txCommitQueue, highestBuyTx)
 
 					sellQuantityRemaining -= buyQuantityRemaining
 				} else { // sellQuantityRemaining < buyQuantityRemaining
