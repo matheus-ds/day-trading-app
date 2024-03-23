@@ -375,12 +375,10 @@ func CancelOrder(order models.StockTransaction) (wasCancelled bool, err error) {
 // cancelBuyOrder() and cancelSellOrder() are mirrors of each other, with "buy" and "sell" swapped.
 
 func (book orderbook) cancelBuyOrder(order models.StockTransaction, txCommitQueue *[]StockMatch) (wasFound bool) {
-	var iter = book.buys.Seek(makeBookKey(order)) // uses Seek instead of Get, as Get tests equality using ==, failing for pointers
-	if iter != nil && iter.Value().(StockMatch).Order.StockTxID == order.StockTxID {
-		wasFound = true
+	victimTx, wasFound := book.buys.Get(makeBookKey(order))
+	if wasFound {
 		book.buys.Delete(makeBookKey(order))
-
-		victimTx := iter.Value().(StockMatch)
+		victimTx := victimTx.(StockMatch)
 		victimTx.Killed = true
 		*txCommitQueue = append(*txCommitQueue, victimTx)
 	}
@@ -388,12 +386,10 @@ func (book orderbook) cancelBuyOrder(order models.StockTransaction, txCommitQueu
 }
 
 func (book orderbook) cancelSellOrder(order models.StockTransaction, txCommitQueue *[]StockMatch) (wasFound bool) {
-	var iter = book.sells.Seek(makeBookKey(order)) // uses Seek instead of Get, as Get tests equality using ==, failing for pointers
-	if iter != nil && iter.Value().(StockMatch).Order.StockTxID == order.StockTxID {
-		wasFound = true
+	victimTx, wasFound := book.sells.Get(makeBookKey(order))
+	if wasFound {
 		book.sells.Delete(makeBookKey(order))
-
-		victimTx := iter.Value().(StockMatch)
+		victimTx := victimTx.(StockMatch)
 		victimTx.Killed = true
 		*txCommitQueue = append(*txCommitQueue, victimTx)
 	}
