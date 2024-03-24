@@ -16,15 +16,6 @@ import (
 	"github.com/ryszard/goskiplist/skiplist"
 )
 
-type StockMatch struct {
-	Order       models.StockTransaction `json:"order" bson:"order"`                 // original order; though matching engine will change OrderStatus
-	QuantityTx  int                     `json:"quantity_tx" bson:"quantity_tx"`     // quantity actually transacted
-	PriceTx     int                     `json:"price_tx" bson:"price_tx"`           // price actually transacted
-	CostTotalTx int                     `json:"cost_total_tx" bson:"cost_total_tx"` // total cost transacted; needed for parent tx
-	IsParent    bool                    `json:"is_parent" bson:"is_parent"`         // true if transaction has created a child
-	Killed      bool                    `json:"killed" bson:"killed"`               // expired or cancelled
-}
-
 func init() {
 	// Start ticker goroutine to periodically flush expired limit orders
 	go func() {
@@ -34,7 +25,21 @@ func init() {
 	}()
 }
 
-// TODO: Optimize for space. Currently stores whole transactions, as both keys and values. Smaller keys is easy.
+// A StockTransaction plus additional info needed for processing orders.
+type StockMatch struct {
+	Order       models.StockTransaction `json:"order" bson:"order"`                 // original order; though matching engine will change OrderStatus
+	QuantityTx  int                     `json:"quantity_tx" bson:"quantity_tx"`     // quantity actually transacted
+	PriceTx     int                     `json:"price_tx" bson:"price_tx"`           // price actually transacted
+	CostTotalTx int                     `json:"cost_total_tx" bson:"cost_total_tx"` // total cost transacted; needed for parent tx
+	IsParent    bool                    `json:"is_parent" bson:"is_parent"`         // true if transaction has created a child
+	Killed      bool                    `json:"killed" bson:"killed"`               // expired or cancelled
+}
+
+// Key for sorting orderbooks.
+type bookKey struct {
+	StockPrice int
+	TimeStamp  int64
+}
 
 type orderbook struct {
 	buys  *skiplist.SkipList
@@ -55,8 +60,8 @@ func lessTime(elem StockMatch, elemAfter StockMatch) bool {
 
 // Prioritize buys by highest price 1st, then earliest time 2nd.
 func buyIsLowerPriorityThan(l, r interface{}) bool {
-	ll := l.(models.StockTransaction)
-	rr := r.(models.StockTransaction)
+	ll := l.(bookKey)
+	rr := r.(bookKey)
 	if ll.StockPrice > rr.StockPrice {
 		return true
 	} else if ll.StockPrice == rr.StockPrice {
@@ -68,14 +73,21 @@ func buyIsLowerPriorityThan(l, r interface{}) bool {
 
 // Prioritize sells by lowest price 1st, then earliest time 2nd.
 func sellIsLowerPriorityThan(l, r interface{}) bool {
-	ll := l.(models.StockTransaction)
-	rr := r.(models.StockTransaction)
+	ll := l.(bookKey)
+	rr := r.(bookKey)
 	if ll.StockPrice < rr.StockPrice {
 		return true
 	} else if ll.StockPrice == rr.StockPrice {
 		return ll.TimeStamp < rr.TimeStamp
 	} else {
 		return false
+	}
+}
+
+func makeBookKey(tx models.StockTransaction) bookKey {
+	return bookKey{
+		StockPrice: tx.StockPrice,
+		TimeStamp:  tx.TimeStamp,
 	}
 }
 
@@ -121,6 +133,7 @@ func createChildTx(parentTx *StockMatch, quantityTraded int, priceTraded int) St
 	childTx.Order.WalletTxID = &walletTxID
 
 	parentTx.IsParent = true
+	parentTx.QuantityTx += quantityTraded
 	parentTx.CostTotalTx += quantityTraded * priceTraded
 	return childTx
 }
@@ -160,7 +173,7 @@ func (book orderbook) matchBuy(buyTx StockMatch, txCommitQueue *[]StockMatch) {
 
 	if book.sells.Len() == 0 {
 		if buyTx.Order.OrderType == "LIMIT" {
-			book.buys.Set(buyTx.Order, buyTx)
+			book.buys.Set(makeBookKey(buyTx.Order), buyTx)
 		} else { // "MARKET"
 			*txCommitQueue = append(*txCommitQueue, buyTx)
 		}
@@ -177,8 +190,7 @@ func (book orderbook) matchBuy(buyTx StockMatch, txCommitQueue *[]StockMatch) {
 			sellQuantityRemaining := lowestSellTx.Order.Quantity - lowestSellTx.QuantityTx
 
 			if isExpired(lowestSellTx) {
-				book.sells.Delete(lowestSellTx.Order)
-				*txCommitQueue = append(*txCommitQueue, lowestSellTx)
+				book.sells.Delete(makeBookKey(lowestSellTx.Order))
 			} else {
 				if (buyTx.Order.OrderType == "LIMIT") && (buyTx.Order.StockPrice < lowestSellTx.Order.StockPrice) {
 					break
@@ -198,14 +210,13 @@ func (book orderbook) matchBuy(buyTx StockMatch, txCommitQueue *[]StockMatch) {
 						}
 					}
 
-					book.sells.Delete(lowestSellTx.Order)
+					book.sells.Delete(makeBookKey(lowestSellTx.Order))
 					if lowestSellTx.Order.OrderStatus == "IN_PROGRESS" { // not parent
 						lowestSellTx.PriceTx = lowestSellTx.Order.StockPrice
 					}
 					lowestSellTx.QuantityTx = lowestSellTx.Order.Quantity - sellQuantityRemaining
 					lowestSellTx.CostTotalTx += sellQuantityRemaining * lowestSellTx.Order.StockPrice
 					lowestSellTx.Order.OrderStatus = "COMPLETED"
-					*txCommitQueue = append(*txCommitQueue, lowestSellTx)
 
 					buyQuantityRemaining -= sellQuantityRemaining
 				} else { // buyQuantityRemaining < sellQuantityRemaining
@@ -220,10 +231,12 @@ func (book orderbook) matchBuy(buyTx StockMatch, txCommitQueue *[]StockMatch) {
 					lowestSellTx.Order.OrderStatus = "PARTIAL_FULFILLED"
 					var sellChildTx = createChildTx(&lowestSellTx, buyQuantityRemaining, lowestSellTx.Order.StockPrice)
 					*txCommitQueue = append(*txCommitQueue, sellChildTx)
+					book.sells.Set(makeBookKey(lowestSellTx.Order), lowestSellTx)
 
 					buyQuantityRemaining = 0
 				}
 			}
+			*txCommitQueue = append(*txCommitQueue, lowestSellTx)
 		}
 
 		buyTx.QuantityTx = buyTx.Order.Quantity - buyQuantityRemaining
@@ -237,10 +250,12 @@ func (book orderbook) matchBuy(buyTx StockMatch, txCommitQueue *[]StockMatch) {
 		}
 
 		if buyTx.Order.OrderStatus != "COMPLETED" && buyTx.Order.OrderType == "LIMIT" {
-			book.buys.Set(buyTx.Order, buyTx)
+			book.buys.Set(makeBookKey(buyTx.Order), buyTx)
 		}
 
-		*txCommitQueue = append(*txCommitQueue, buyTx)
+		if !(buyTx.Order.OrderStatus == "IN_PROGRESS" && buyTx.Order.OrderType == "LIMIT") {
+			*txCommitQueue = append(*txCommitQueue, buyTx)
+		}
 	}
 }
 
@@ -250,7 +265,7 @@ func (book orderbook) matchSell(sellTx StockMatch, txCommitQueue *[]StockMatch) 
 
 	if book.buys.Len() == 0 {
 		if sellTx.Order.OrderType == "LIMIT" {
-			book.sells.Set(sellTx.Order, sellTx)
+			book.sells.Set(makeBookKey(sellTx.Order), sellTx)
 		} else { // "MARKET"
 			*txCommitQueue = append(*txCommitQueue, sellTx)
 		}
@@ -267,10 +282,9 @@ func (book orderbook) matchSell(sellTx StockMatch, txCommitQueue *[]StockMatch) 
 			buyQuantityRemaining := highestBuyTx.Order.Quantity - highestBuyTx.QuantityTx
 
 			if isExpired(highestBuyTx) {
-				book.buys.Delete(highestBuyTx.Order)
-				*txCommitQueue = append(*txCommitQueue, highestBuyTx)
+				book.buys.Delete(makeBookKey(highestBuyTx.Order))
 			} else {
-				if (sellTx.Order.OrderType == "LIMIT") && (sellTx.Order.StockPrice < highestBuyTx.Order.StockPrice) {
+				if (sellTx.Order.OrderType == "LIMIT") && (sellTx.Order.StockPrice > highestBuyTx.Order.StockPrice) {
 					break
 				}
 
@@ -288,14 +302,13 @@ func (book orderbook) matchSell(sellTx StockMatch, txCommitQueue *[]StockMatch) 
 						}
 					}
 
-					book.buys.Delete(highestBuyTx.Order)
+					book.buys.Delete(makeBookKey(highestBuyTx.Order))
 					if highestBuyTx.Order.OrderStatus == "IN_PROGRESS" { // not parent
 						highestBuyTx.PriceTx = highestBuyTx.Order.StockPrice
 					}
 					highestBuyTx.QuantityTx = highestBuyTx.Order.Quantity - buyQuantityRemaining
 					highestBuyTx.CostTotalTx += buyQuantityRemaining * highestBuyTx.Order.StockPrice
 					highestBuyTx.Order.OrderStatus = "COMPLETED"
-					*txCommitQueue = append(*txCommitQueue, highestBuyTx)
 
 					sellQuantityRemaining -= buyQuantityRemaining
 				} else { // sellQuantityRemaining < buyQuantityRemaining
@@ -310,10 +323,12 @@ func (book orderbook) matchSell(sellTx StockMatch, txCommitQueue *[]StockMatch) 
 					highestBuyTx.Order.OrderStatus = "PARTIAL_FULFILLED"
 					var buyChildTx = createChildTx(&highestBuyTx, sellQuantityRemaining, highestBuyTx.Order.StockPrice)
 					*txCommitQueue = append(*txCommitQueue, buyChildTx)
+					book.buys.Set(makeBookKey(highestBuyTx.Order), highestBuyTx)
 
 					sellQuantityRemaining = 0
 				}
 			}
+			*txCommitQueue = append(*txCommitQueue, highestBuyTx)
 		}
 
 		sellTx.QuantityTx = sellTx.Order.Quantity - sellQuantityRemaining
@@ -327,10 +342,12 @@ func (book orderbook) matchSell(sellTx StockMatch, txCommitQueue *[]StockMatch) 
 		}
 
 		if sellTx.Order.OrderStatus != "COMPLETED" && sellTx.Order.OrderType == "LIMIT" {
-			book.sells.Set(sellTx.Order, sellTx)
+			book.sells.Set(makeBookKey(sellTx.Order), sellTx)
 		}
 
-		*txCommitQueue = append(*txCommitQueue, sellTx)
+		if !(sellTx.Order.OrderStatus == "IN_PROGRESS" && sellTx.Order.OrderType == "LIMIT") {
+			*txCommitQueue = append(*txCommitQueue, sellTx)
+		}
 	}
 }
 
@@ -357,9 +374,9 @@ func CancelOrder(order models.StockTransaction) (wasCancelled bool, err error) {
 // cancelBuyOrder() and cancelSellOrder() are mirrors of each other, with "buy" and "sell" swapped.
 
 func (book orderbook) cancelBuyOrder(order models.StockTransaction, txCommitQueue *[]StockMatch) (wasFound bool) {
-	victimTx, wasFound := book.buys.Get(order)
+	victimTx, wasFound := book.buys.Get(makeBookKey(order))
 	if wasFound {
-		book.buys.Delete(order)
+		book.buys.Delete(makeBookKey(order))
 		victimTx := victimTx.(StockMatch)
 		victimTx.Killed = true
 		*txCommitQueue = append(*txCommitQueue, victimTx)
@@ -368,9 +385,9 @@ func (book orderbook) cancelBuyOrder(order models.StockTransaction, txCommitQueu
 }
 
 func (book orderbook) cancelSellOrder(order models.StockTransaction, txCommitQueue *[]StockMatch) (wasFound bool) {
-	victimTx, wasFound := book.sells.Get(order)
+	victimTx, wasFound := book.sells.Get(makeBookKey(order))
 	if wasFound {
-		book.sells.Delete(order)
+		book.sells.Delete(makeBookKey(order))
 		victimTx := victimTx.(StockMatch)
 		victimTx.Killed = true
 		*txCommitQueue = append(*txCommitQueue, victimTx)

@@ -74,9 +74,17 @@ func executeBuy(tx StockMatch) (err error) {
 
 	} else if tx.Order.OrderStatus == "COMPLETED" {
 		// Add stock quantity to user portfolio
-		err = mh.AddStockToUser(tx.Order.UserName, tx.Order.StockID, tx.Order.Quantity)
-		if err != nil {
-			return err
+		currentUserStocks, _ := mh.GetStockQuantityFromUser(tx.Order.UserName, tx.Order.StockID)
+		if currentUserStocks == 0 { // this is jank. optimize later.
+			err = mh.AddStockToUser(tx.Order.UserName, tx.Order.StockID, tx.Order.Quantity)
+			if err != nil {
+				return err
+			}
+		} else {
+			err = mh.UpdateStockToUser(tx.Order.UserName, tx.Order.StockID, currentUserStocks+tx.Order.Quantity)
+			if err != nil {
+				return err
+			}
 		}
 
 		if tx.Order.ParentStockTxID != nil { // child
@@ -85,7 +93,6 @@ func executeBuy(tx StockMatch) (err error) {
 			if err != nil {
 				return err
 			}
-			// todo should this change user wallet?
 
 			_, err = mh.PlaceStockOrder(tx.Order.UserName, tx.Order.StockID, tx.Order.IsBuy, tx.Order.OrderType, tx.Order.Quantity, tx.Order.StockPrice, tx.Order.StockTxID, *tx.Order.WalletTxID)
 			if err != nil {
@@ -109,6 +116,10 @@ func executeBuy(tx StockMatch) (err error) {
 			}
 		}
 
+		err = mh.UpdateStockPrice(tx.Order.StockID, tx.Order.StockPrice)
+		if err != nil {
+			return err
+		}
 	} else if tx.Order.OrderStatus == "" {
 		return errors.New("order status is empty string")
 	} else {
@@ -120,9 +131,17 @@ func executeBuy(tx StockMatch) (err error) {
 func executeSell(tx StockMatch) (err error) {
 	if tx.Order.OrderStatus == "IN_PROGRESS" { // unfulfilled
 		// Add stock quantity back to user portfolio
-		err = mh.AddStockToUser(tx.Order.UserName, tx.Order.StockID, tx.Order.Quantity)
-		if err != nil {
-			return err
+		currentUserStocks, _ := mh.GetStockQuantityFromUser(tx.Order.UserName, tx.Order.StockID)
+		if currentUserStocks == 0 { // this is jank. optimize later.
+			err = mh.AddStockToUser(tx.Order.UserName, tx.Order.StockID, tx.Order.Quantity)
+			if err != nil {
+				return err
+			}
+		} else {
+			err = mh.UpdateStockToUser(tx.Order.UserName, tx.Order.StockID, currentUserStocks+tx.Order.Quantity)
+			if err != nil {
+				return err
+			}
 		}
 
 		// Delete stock transaction
@@ -133,9 +152,17 @@ func executeSell(tx StockMatch) (err error) {
 
 	} else if tx.Order.OrderStatus == "PARTIAL_FULFILLED" {
 		// Add remaining stock quantity back to user portfolio (remaining = Order.Quantity - QuantityTx)
-		err = mh.AddStockToUser(tx.Order.UserName, tx.Order.StockID, tx.Order.Quantity-tx.QuantityTx)
-		if err != nil {
-			return err
+		currentUserStocks, _ := mh.GetStockQuantityFromUser(tx.Order.UserName, tx.Order.StockID)
+		if currentUserStocks == 0 { // this is jank. optimize later.
+			err = mh.AddStockToUser(tx.Order.UserName, tx.Order.StockID, tx.Order.Quantity-tx.QuantityTx)
+			if err != nil {
+				return err
+			}
+		} else {
+			err = mh.UpdateStockToUser(tx.Order.UserName, tx.Order.StockID, currentUserStocks+tx.Order.Quantity-tx.QuantityTx)
+			if err != nil {
+				return err
+			}
 		}
 
 		if tx.Order.OrderType == "MARKET" && !tx.IsParent {
@@ -195,6 +222,10 @@ func executeSell(tx StockMatch) (err error) {
 			return err
 		}
 
+		err = mh.UpdateStockPrice(tx.Order.StockID, tx.Order.StockPrice)
+		if err != nil {
+			return err
+		}
 	} else if tx.Order.OrderStatus == "" {
 		return errors.New("order status is empty string")
 	} else {
