@@ -18,11 +18,10 @@ const StockOrder = () => {
     setQuantity('');
     setPrice('')
     setLoading(true)
-    setLoading(true)
     let msg = await api.placeStockOrder(stockid, ordertype, quantity, price);
     console.log(msg.success)
     if (msg.success == false) {
-        alert(msg.message);
+        alert(msg.data.error);
     }
 
     setLoading(false)

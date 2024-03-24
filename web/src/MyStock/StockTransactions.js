@@ -5,6 +5,7 @@ import * as api from '../Api.js'
 
 
 const StockTransactions = () => {
+  const [err, setErr] = useState(false);
   const [val, setVal] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -17,10 +18,11 @@ const StockTransactions = () => {
         
         // Fetch data from API
         const data = await api.getStockTransactions();
+        setErr(!data.success);
         if (data.success) {
-            setVal(data.data);
+          setVal(data.data ?? []);
         } else {
-            alert(data.message);
+            setVal(data.data.error);
         }
         setLoading(false); 
       } catch (error) {
@@ -41,7 +43,7 @@ const StockTransactions = () => {
     <div>
       {loading ? (
         <h1>{'Transactions: Loading....'}</h1>
-      ) : (
+      ) : ( err ? (<h2>Transaction Data (error) : {val}</h2>) : (
         <div>
         <h2>Transaction Data</h2>
         <Table striped bordered hover>
@@ -62,7 +64,7 @@ const StockTransactions = () => {
                         ))}
             </tbody>
         </Table>
-    </div>
+    </div>)
       )
     }
     </div>
