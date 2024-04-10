@@ -34,6 +34,7 @@ type Database interface {
 	UpdateStockToUser(userName string, stockID string, quantity int) error
 	DeleteStockToUser(userName string, stockID string) error
 	GetStockQuantityFromUser(userName string, stockID string) (int, error)
+	ManageUserStock(userName string, stockID string, quantity int) error
 	GetStockPortfolio(userName string) ([]models.PortfolioItem, error)
 	GetStockTransactions(userName string) ([]models.StockTransaction, error)
 	GetStockPrices() ([]models.StockPrice, error) // get prices from all stocks in the stocks collection
@@ -46,6 +47,7 @@ type Database interface {
 	// wallet
 	SetWalletBalance(userName string, newBalance int) error
 	GetWalletBalance(userName string) (int, error)
+	ManageUserWalletBalance(userName string, amountToAdd int) error
 	GetWalletTransactions(userName string) ([]models.WalletTransaction, error)
 	AddWalletTransaction(userName string, walletTxID string, stockTxID string, is_debit bool, amount int, timeStamp int64) error
 	DeleteWalletTransaction(userName string, walletTxID string) error
