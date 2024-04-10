@@ -122,6 +122,12 @@ func (mh *MongoHandler) ManageUserStock(userName string, stockID string, quantit
 			}
 		}
 	}
+	if len(user.Stocks) == 0 {
+		_, err := collection.UpdateOne(context.Background(), filter, update)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
