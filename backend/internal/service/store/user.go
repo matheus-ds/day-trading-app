@@ -102,6 +102,25 @@ func (mh *MongoHandler) SetWalletBalance(userName string, newBalance int) error 
 	return nil
 }
 
+// Tested
+func (mh *MongoHandler) ManageUserWalletBalance(userName string, amountToAdd int) error {
+	// Access the collection where user data is stored
+	collection := mh.client.Database("day-trading-app").Collection("users")
+
+	// Define the update operation to increment the existing balance
+	update := bson.M{"$inc": bson.M{"balance": amountToAdd}}
+
+	// Perform the update operation atomically and get the updated document
+	var updatedUser models.User
+	err := collection.FindOneAndUpdate(context.Background(), bson.M{"user_name": userName}, update).Decode(&updatedUser)
+	if err != nil {
+		return err
+	}
+
+	// Return the updated balance
+	return nil
+}
+
 // Tested.
 func (mh *MongoHandler) AddWalletTransaction(userName string, walletTxID string, stockTxID string, is_debit bool, amount int, timeStamp int64) error {
 

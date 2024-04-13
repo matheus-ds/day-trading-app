@@ -30,8 +30,7 @@ func executeBuy(tx StockMatch) (err error) {
 	if tx.Order.OrderStatus == "IN_PROGRESS" { // unfulfilled
 		// Add deducted money back to wallet
 		var deducted = tx.Order.Quantity * tx.Order.StockPrice
-		walletBalance, _ := mh.GetWalletBalance(tx.Order.UserName)
-		err = mh.SetWalletBalance(tx.Order.UserName, walletBalance+deducted)
+		err = mh.ManageUserWalletBalance(tx.Order.UserName, deducted)
 		if err != nil {
 			return err
 		}
@@ -51,8 +50,7 @@ func executeBuy(tx StockMatch) (err error) {
 	} else if tx.Order.OrderStatus == "PARTIAL_FULFILLED" {
 		// Refund remaining wallet amount
 		var deducted = tx.Order.Quantity * tx.Order.StockPrice
-		walletBalance, _ := mh.GetWalletBalance(tx.Order.UserName)
-		err = mh.SetWalletBalance(tx.Order.UserName, walletBalance+(deducted-tx.CostTotalTx))
+		err = mh.ManageUserWalletBalance(tx.Order.UserName, deducted)
 		if err != nil {
 			return err
 		}
@@ -74,17 +72,9 @@ func executeBuy(tx StockMatch) (err error) {
 
 	} else if tx.Order.OrderStatus == "COMPLETED" {
 		// Add stock quantity to user portfolio
-		currentUserStocks, _ := mh.GetStockQuantityFromUser(tx.Order.UserName, tx.Order.StockID)
-		if currentUserStocks == 0 { // this is jank. optimize later.
-			err = mh.AddStockToUser(tx.Order.UserName, tx.Order.StockID, tx.Order.Quantity)
-			if err != nil {
-				return err
-			}
-		} else {
-			err = mh.UpdateStockToUser(tx.Order.UserName, tx.Order.StockID, currentUserStocks+tx.Order.Quantity)
-			if err != nil {
-				return err
-			}
+		err = mh.ManageUserStock(tx.Order.UserName, tx.Order.StockID, tx.Order.Quantity)
+		if err != nil {
+			return err
 		}
 
 		if tx.Order.ParentStockTxID != nil { // child
@@ -131,17 +121,9 @@ func executeBuy(tx StockMatch) (err error) {
 func executeSell(tx StockMatch) (err error) {
 	if tx.Order.OrderStatus == "IN_PROGRESS" { // unfulfilled
 		// Add stock quantity back to user portfolio
-		currentUserStocks, _ := mh.GetStockQuantityFromUser(tx.Order.UserName, tx.Order.StockID)
-		if currentUserStocks == 0 { // this is jank. optimize later.
-			err = mh.AddStockToUser(tx.Order.UserName, tx.Order.StockID, tx.Order.Quantity)
-			if err != nil {
-				return err
-			}
-		} else {
-			err = mh.UpdateStockToUser(tx.Order.UserName, tx.Order.StockID, currentUserStocks+tx.Order.Quantity)
-			if err != nil {
-				return err
-			}
+		err = mh.ManageUserStock(tx.Order.UserName, tx.Order.StockID, tx.Order.Quantity)
+		if err != nil {
+			return err
 		}
 
 		// Delete stock transaction
@@ -152,17 +134,9 @@ func executeSell(tx StockMatch) (err error) {
 
 	} else if tx.Order.OrderStatus == "PARTIAL_FULFILLED" {
 		// Add remaining stock quantity back to user portfolio (remaining = Order.Quantity - QuantityTx)
-		currentUserStocks, _ := mh.GetStockQuantityFromUser(tx.Order.UserName, tx.Order.StockID)
-		if currentUserStocks == 0 { // this is jank. optimize later.
-			err = mh.AddStockToUser(tx.Order.UserName, tx.Order.StockID, tx.Order.Quantity-tx.QuantityTx)
-			if err != nil {
-				return err
-			}
-		} else {
-			err = mh.UpdateStockToUser(tx.Order.UserName, tx.Order.StockID, currentUserStocks+tx.Order.Quantity-tx.QuantityTx)
-			if err != nil {
-				return err
-			}
+		err = mh.ManageUserStock(tx.Order.UserName, tx.Order.StockID, tx.Order.Quantity-tx.QuantityTx)
+		if err != nil {
+			return err
 		}
 
 		if tx.Order.OrderType == "MARKET" && !tx.IsParent {

@@ -89,6 +89,48 @@ func (mh *MongoHandler) GetStockQuantityFromUser(userName string, stockID string
 	return 0, errors.New("stock not found in user's portfolio")
 }
 
+// TESTED
+func (mh *MongoHandler) ManageUserStock(userName string, stockID string, quantity int) error {
+	collection := mh.client.Database("day-trading-app").Collection("users")
+
+	// Add stock if it doesn't exist, or update quantity if it does
+	filter := bson.M{"user_name": userName}
+	update := bson.M{
+		"$set": bson.M{"user_name": userName},
+		"$addToSet": bson.M{
+			"stocks": bson.M{
+				"stock_id":   stockID,
+				"stock_name": strings.Split(cases.Title(language.Make(stockID)).String(stockID), "stockid")[0],
+				"quantity":   quantity,
+			},
+		},
+	}
+
+	var user models.User
+	collection.FindOne(context.Background(), bson.M{"user_name": userName}).Decode(&user)
+	for _, stock := range user.Stocks {
+		if stock.StockID == stockID {
+			update = bson.M{"$inc": bson.M{"stocks.$.quantity": quantity}}
+			_, err := collection.UpdateOne(context.Background(), bson.M{"user_name": userName, "stocks.stock_id": stockID}, update)
+			if err != nil {
+				return err
+			}
+		} else {
+			_, err := collection.UpdateOne(context.Background(), filter, update)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	if len(user.Stocks) == 0 {
+		_, err := collection.UpdateOne(context.Background(), filter, update)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Tested
 func (mh *MongoHandler) GetStockPortfolio(userName string) ([]models.PortfolioItem, error) {
 	// Access the collection where user portfolio data is stored
