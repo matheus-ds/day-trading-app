@@ -6,6 +6,7 @@ import (
 	"os"
 	"sync"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -31,6 +32,7 @@ func GetMongoHandler() *MongoHandler {
 			if err != nil {
 				fmt.Println("Error connecting to mongo: ", err)
 			}
+			initMongoCollections(client)
 			handler = &MongoHandler{}
 			handler.client = client
 			//Test USE ONLY
@@ -46,8 +48,55 @@ func GetMongoHandler() *MongoHandler {
 			fmt.Println("Mongo single instance already created.")
 		}
 	} else {
-		fmt.Println("Single instance already created.")
+		//fmt.Println("Single instance already created.")
 	}
 
 	return handler
+}
+
+func initMongoCollections(client *mongo.Client) {
+	coll := client.Database("day-trading-app").Collection("stock_transactions")
+	indexModel := mongo.IndexModel{
+		Keys: bson.D{{"stock_tx_id", 1}}}
+	_, err := coll.Indexes().CreateOne(context.TODO(), indexModel)
+	if err != nil {
+		fmt.Println("Failed to create Mongo index", err)
+	}
+	indexModel = mongo.IndexModel{
+		Keys: bson.D{{"user_name", 1}}}
+	_, err = coll.Indexes().CreateOne(context.TODO(), indexModel)
+	if err != nil {
+		fmt.Println("Failed to create Mongo index", err)
+	}
+
+	coll = client.Database("day-trading-app").Collection("stocks")
+	indexModel = mongo.IndexModel{
+		Keys: bson.D{{"stock_id", 1}}}
+	_, err = coll.Indexes().CreateOne(context.TODO(), indexModel)
+	if err != nil {
+		fmt.Println("Failed to create Mongo index", err)
+	}
+
+	coll = client.Database("day-trading-app").Collection("users")
+	indexModel = mongo.IndexModel{
+		Keys: bson.D{{"user_name", 1}}}
+	_, err = coll.Indexes().CreateOne(context.TODO(), indexModel)
+	if err != nil {
+		fmt.Println("Failed to create Mongo index", err)
+	}
+
+	coll = client.Database("day-trading-app").Collection("wallet_transactions")
+	indexModel = mongo.IndexModel{
+		Keys: bson.D{{"user_name", 1}}}
+	_, err = coll.Indexes().CreateOne(context.TODO(), indexModel)
+	if err != nil {
+		fmt.Println("Failed to create Mongo index", err)
+	}
+	coll = client.Database("day-trading-app").Collection("wallet_transactions")
+	indexModel = mongo.IndexModel{
+		Keys: bson.D{{"wallet_tx_id", 1}}}
+	_, err = coll.Indexes().CreateOne(context.TODO(), indexModel)
+	if err != nil {
+		fmt.Println("Failed to create Mongo index", err)
+	}
 }
